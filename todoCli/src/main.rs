@@ -1,6 +1,5 @@
-// - GET SERDE LIBRARY:
-
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 use std::{cmp, env, fs};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -12,19 +11,19 @@ struct Task {
 
 const CMD_NAME: &str = "todo";
 const FILE_NAME: &str = "my_todo.json";
-const PAGE_LENGTH: u8 = 8;
+const PAGE_LENGTH: usize = 8;
 
 fn find_file() -> String {
-    let mut file_path: &str = FILE_NAME;
-
-    //check for file in current directory
+    let file_path;
     if !fs::metadata(FILE_NAME).is_ok() {
         //if not found check in parent directory
         let current_dir = env::current_dir().unwrap();
-        let parent_dir = current_dir.parent().unwrap();
-        file_path = parent_dir.join(FILE_NAME).to_str().unwrap();
+        let new_dir = current_dir.parent().unwrap().join(FILE_NAME);
+        file_path = new_dir.to_str().unwrap().to_owned();
+    } else {
+        file_path = FILE_NAME.to_string();
     };
-    return file_path.to_string();
+    return file_path;
 }
 
 fn get_tasks() -> Vec<Task> {
@@ -64,7 +63,7 @@ fn help_desc(cmd: &str) -> &str {
     }
 }
 
-fn do_help(args: Vec<String>) {
+fn do_help(args: &Vec<String>) {
     if args.len() > 2 {
         //user asked for help with a specific command
         println!(
@@ -115,23 +114,76 @@ fn add_task(args: Vec<String>) {
         );
         return;
     }
+    let task_number: usize = args[2].parse().unwrap();
     let mut tasks = get_tasks();
+
+    let tags = &mut tasks.get_mut(task_number).unwrap().tags;
+
+    for i in 3..args.len() {
+        match args.get(i) {
+            Some(tag) => tags.push(tag.to_string()),
+            None => (),
+        }
+    }
+
+    // Save the updated tasks back to the file
+    let file_path = find_file();
+    let serialized_tasks = serde_json::to_string(&tasks).unwrap();
+    fs::write(file_path, serialized_tasks).unwrap();
+}
+
+fn remove_task(args: Vec<String>) {
+    if args.len() < 3 {
+        println!(
+            "No task number provided.\nTry '{} help new' for more details.",
+            CMD_NAME
+        );
+        return;
+    }
+    let task_number: usize = args[2].parse().unwrap();
+    let mut tasks = get_tasks();
+
+    let tags = &mut tasks.get_mut(task_number).unwrap().tags;
+
+    for i in 3..args.len() {
+        let tag;
+        match args.get(i) {
+            Some(val) => tag = val,
+            None => continue,
+        }
+        match args.find(tag) {
+            Some(index) => tags.swap_remove(index),
+            None => (),
+        }
+    }
+
+    // Save the updated tasks back to the file
+    let file_path = find_file();
+    let serialized_tasks = serde_json::to_string(&tasks).unwrap();
+    fs::write(file_path, serialized_tasks).unwrap();
 }
 
 fn list_task(args: Vec<String>) {
-    let mut tasks = get_tasks();
-    let mut page: u8 = 0;
+    let tasks = get_tasks();
+    let mut page: usize = 0;
     if args.len() >= 3 {
         page = args[2].parse().unwrap();
     }
 
     let len = tasks.len();
-    let maxxed = cmp::max(page, len as u8 / PAGE_LENGTH) as u8;
-    let start: u8 = cmp::min(maxxed * PAGE_LENGTH, 0);
+    let maxxed = cmp::max(page, len / PAGE_LENGTH);
+    let start: usize = cmp::min(maxxed * PAGE_LENGTH, 0);
 
     for i in start..start + 20 {
         let t = tasks.get(i).unwrap(); // TODO: figure out how to get the tasks from this
-        println!(" ({}) [{}] {}", i, t, i);
+        let mut tags_text: String = t.tags.get(0).unwrap_or(&"".to_string()).to_string();
+
+        for j in 1..t.tags.len() {
+            tags_text.push_str(", ");
+            tags_text.push_str(t.tags.get(j).unwrap());
+        }
+
+        println!(" ({}) [{}] {}", i, tags_text, t.text);
     }
 }
 
@@ -151,7 +203,7 @@ fn main() {
     if args.len() < 2 {
         println!("Welcome to Max's custom todo cli!");
         println!("Version - 0.1\n\n");
-        do_help(args);
+        do_help(&args);
     }
 
     //figure out whether user wants to
@@ -170,6 +222,6 @@ fn main() {
             "delete" => new_task(args),
             "clean" => new_task(args),
         */
-        &_ => do_help(args);
+        &_ => do_help(&args),
     }
 }
