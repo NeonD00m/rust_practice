@@ -12,6 +12,8 @@ struct Task {
 const CMD_NAME: &str = "todo";
 const FILE_NAME: &str = "my_todo.json";
 const PAGE_LENGTH: usize = 8;
+const CHECK_MARK: char = '🗹'; //✓🗹';
+const UNCHECKED: char = '☐'; //☐';
 
 fn find_file() -> String {
     let file_path;
@@ -45,12 +47,22 @@ fn format_task(index: usize, task: &Task) -> String {
         tags_text.push_str(task.tags.get(j).unwrap());
     }
 
-    return format!(" ({}) [{}] {}", index, tags_text, task.text);
+    return format!(
+        " {} ({}) [{}] {}",
+        if task.completed {
+            CHECK_MARK
+        } else {
+            UNCHECKED
+        },
+        index,
+        tags_text,
+        task.text
+    );
 }
 
 fn help_usage(cmd: &str) -> &str {
     match cmd {
-        "new" => "[description of task]",
+        "new" => "[description of task...]",
         "add" => "[task number] [tags to add...]",
         "remove" => "[task number] [tags to add...]",
         "list" => "[optional page number]",
@@ -69,7 +81,7 @@ fn help_desc(cmd: &str) -> &str {
         "remove" => "removes a tag from a task",
         "list" => "lists tasks in pages",
         "search" => "searches tasks by tags",
-        "complete" => "completes a task",
+        "complete" => "completes/uncompletes a task",
         "delete" => "deletes a task",
         "clean" => "deletes all tasks",
         &_ => "",
@@ -119,7 +131,7 @@ fn new_task(args: Vec<String>) {
     let mut tasks = get_tasks();
 
     tasks.push(Task {
-        text: args.get(2).unwrap().to_string(),
+        text: args[2..].join(" "),
         completed: false,
         tags: Vec::new(),
     });
@@ -204,7 +216,7 @@ fn list_task(args: Vec<String>) {
         println!("{}", format_task(i, &t));
     }
     println!(
-        "\nPage {} of {}. Use '{} list [PAGE NUMBER]' to for more results.",
+        "\nPage {} of {}. Use '{} list [PAGE NUMBER]' for more results.",
         maxxed,
         len / PAGE_LENGTH,
         CMD_NAME
@@ -245,9 +257,15 @@ fn complete_task(args: Vec<String>) {
         return;
     }
 
-    let task_number: usize = args[2].parse().unwrap();
     let mut tasks = get_tasks();
-    tasks.get_mut(task_number).unwrap().completed = true;
+    //let task_number: usize = args[2].parse().unwrap();
+    //tasks.get_mut(task_number).unwrap().completed = true;
+
+    for i in 2..args.len() {
+        let task_number: usize = args.get(i).unwrap().parse().unwrap();
+        let task = tasks.get_mut(task_number).unwrap();
+        task.completed = !task.completed;
+    }
 
     save_tasks(tasks);
 }
@@ -269,7 +287,11 @@ fn delete_task(args: Vec<String>) {
 }
 
 fn clean_task() {
-    save_tasks(Vec::new());
+    if let Err(err) = fs::remove_file(find_file()) {
+        println!("Failed to delete file, error: {}", err);
+    }
+    //fs::remove_file(find_file());
+    //save_tasks(Vec::new());
 }
 
 fn main() {
@@ -277,7 +299,7 @@ fn main() {
 
     if args.len() < 2 {
         println!("Welcome to Max's custom todo cli!");
-        println!("Version - 0.1\n");
+        println!("Version - 0.6.0\n");
         do_help(&args);
         return;
     }
