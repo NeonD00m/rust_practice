@@ -215,6 +215,9 @@ fn list_task(args: Vec<String>) {
         };
         println!("{}", format_task(i, &t));
     }
+    if len / PAGE_LENGTH <= 1 {
+        return;
+    }
     println!(
         "\nPage {} of {}. Use '{} list [PAGE NUMBER]' for more results.",
         maxxed,

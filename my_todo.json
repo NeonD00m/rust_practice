@@ -8,5 +8,10 @@
     "text": "think about new tools as well",
     "completed": false,
     "tags": []
+  },
+  {
+    "text": "tree and project structure tool that will list out files according to directories and can add lengths optionally",
+    "completed": false,
+    "tags": []
   }
 ]
