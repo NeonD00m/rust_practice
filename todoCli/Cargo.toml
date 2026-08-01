@@ -1,6 +1,6 @@
 [package]
-name = "todoCli"
-version = "0.1.0"
+name = "todo"
+version = "0.7.0"
 edition = "2021"
 
 [dependencies]

@@ -1,72 +1,30 @@
-use serde::Deserialize;
-use serde::Serialize;
+pub mod core;
+pub mod scanner;
+use crate::core::*;
+use crate::scanner::scan_tasks;
 use std::{cmp, env, fs};
 
-#[derive(Serialize, Deserialize, Debug)]
-struct Task {
-    text: String,
-    completed: bool,
-    tags: Vec<String>,
-}
-
-const CMD_NAME: &str = "todo";
-const FILE_NAME: &str = "my_todo.json";
-const PAGE_LENGTH: usize = 8;
-const CHECK_MARK: char = '🗹'; //✓🗹';
-const UNCHECKED: char = '☐'; //☐';
-
-fn find_file() -> String {
-    let file_path;
-    let current_dir = env::current_dir().unwrap();
-    let new_dir = &current_dir.parent().unwrap().join(FILE_NAME);
-    if !fs::metadata(FILE_NAME).is_ok() && fs::metadata(new_dir).is_ok() {
-        //if not found check in parent directory
-        file_path = new_dir.to_str().unwrap().to_owned();
-    } else {
-        file_path = FILE_NAME.to_string();
-    };
-    return file_path;
-}
-
-fn get_tasks() -> Vec<Task> {
-    return match fs::read_to_string(find_file()) {
-        Ok(content) => serde_json::from_str(&content).unwrap(),
-        Err(_) => Vec::new(),
-    };
-}
-
-fn save_tasks(tasks: Vec<Task>) {
-    fs::write(find_file(), serde_json::to_string_pretty(&tasks).unwrap()).unwrap();
-}
-
-fn format_task(index: usize, task: &Task) -> String {
-    let mut tags_text: String = task.tags.get(0).unwrap_or(&"".to_string()).to_string();
-
-    for j in 1..task.tags.len() {
-        tags_text.push_str(", ");
-        tags_text.push_str(task.tags.get(j).unwrap());
+fn match_shortcut(cmd: &str) -> &str {
+    match cmd {
+        "n" => "new",
+        "a" => "add",
+        "r" => "remove",
+        "l" => "list",
+        "s" => "search",
+        "c" => "complete",
+        &_ => cmd,
     }
-
-    return format!(
-        " {} ({}) [{}] {}",
-        if task.completed {
-            CHECK_MARK
-        } else {
-            UNCHECKED
-        },
-        index,
-        tags_text,
-        task.text
-    );
 }
 
 fn help_usage(cmd: &str) -> &str {
     match cmd {
         "new" => "[description of task...]",
         "add" => "[task number] [tags to add...]",
-        "remove" => "[task number] [tags to add...]",
-        "list" => "[optional page number]",
+        "attach" => "[task number] [files to attach...]",
+        "remove" => "[task number] [tags to remove...]",
+        "list" => "[optional: page number] [optional: -i|--incomplete-only]",
         "search" => "[tags to search...]",
+        "scan" => "[optional: directories/files to scan...]",
         "complete" => "[task numbers...]",
         "delete" => "[task numbers...]",
         "clean" => "",
@@ -78,11 +36,13 @@ fn help_desc(cmd: &str) -> &str {
     match cmd {
         "new" => "creates a new task",
         "add" => "adds a tag to a task",
+        "attach" => "attaches files to a task",
         "remove" => "removes a tag from a task",
         "list" => "lists tasks in pages",
         "search" => "searches tasks by tags",
-        "complete" => "completes/uncompletes a task",
-        "delete" => "deletes a task",
+        "scan" => "scans files and directories for TODO comments to convert",
+        "complete" => "completes/uncompletes tasks",
+        "delete" => "deletes tasks",
         "clean" => "deletes all tasks",
         &_ => "",
     }
@@ -91,30 +51,23 @@ fn help_desc(cmd: &str) -> &str {
 fn do_help(args: &Vec<String>) {
     if args.len() > 2 {
         //user asked for help with a specific command
-        println!(
-            "\nNAME:\n\t\t{}-{} - {}\n",
-            CMD_NAME,
-            args[2],
-            help_desc(args[2].as_str())
-        );
-        println!(
-            "SYNOPSIS:\n\t\t{} {} {}\n",
-            CMD_NAME,
-            args[2],
-            help_usage(args[2].as_str())
-        );
-        println!("Extended help for commands coming soon."); // TODO: help_options(), help_full()
+        let cmd = match_shortcut(args[2].as_str());
+        println!("\nNAME:\n\t\t{}-{} - {}\n", CMD_NAME, cmd, help_desc(cmd));
+        println!("SYNOPSIS:\n\t\t{} {} {}\n", CMD_NAME, cmd, help_usage(cmd));
+        // println!("Extended help for commands coming soon."); // TODO: help_options(), help_full()
     } else {
         //output general help and outline
         println!("Usage: {} [COMMAND]\n", CMD_NAME);
 
         println!("\tnew, n          {}", help_desc("new"));
         println!("\tadd, a          {}", help_desc("add"));
+        println!("\tattach, a       {}", help_desc("attach"));
         println!("\tremove, r       {}", help_desc("remove"));
         println!("\tlist, l         {}", help_desc("list"));
         println!("\tsearch, s       {}", help_desc("search"));
+        println!("\tscan            {}", help_desc("scan"));
         println!("\tcomplete, c     {}", help_desc("complete"));
-        println!("\tdelete          {}", help_desc("delete")); //should there be a recovery thing??
+        println!("\tdelete          {}", help_desc("delete"));
         println!("\tclean           {}", help_desc("clean"));
     }
 }
@@ -134,6 +87,7 @@ fn new_task(args: Vec<String>) {
         text: args[2..].join(" "),
         completed: false,
         tags: Vec::new(),
+        files: Vec::new(),
     });
 
     save_tasks(tasks);
@@ -176,11 +130,10 @@ fn remove_task(args: Vec<String>) {
     let tags = &mut tasks.get_mut(task_number).unwrap().tags;
 
     for i in 3..args.len() {
-        let tag;
-        match args.get(i) {
-            Some(val) => tag = val,
+        let tag = match args.get(i) {
+            Some(val) => val,
             None => continue,
-        }
+        };
 
         for i in 0..tags.len() {
             match tags.get(i) {
@@ -198,30 +151,44 @@ fn remove_task(args: Vec<String>) {
 }
 
 fn list_task(args: Vec<String>) {
+    let hide_completed = args
+        .iter()
+        .any(|arg| arg == "--incomplete-only" || arg == "-i");
+    let show_files = args.iter().any(|arg| arg == "--files" || arg == "-f");
+    let requested_page: usize = args[2..]
+        .iter()
+        .filter(|arg| !arg.starts_with('-'))
+        .nth(0)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
+    // Filter tasks FIRST while preserving original indices
     let tasks = get_tasks();
-    let mut page: usize = 0;
-    if args.len() > 2 {
-        page = args[2].parse().unwrap();
-    }
+    let visible_tasks: Vec<(usize, &Task)> = tasks
+        .iter()
+        .enumerate()
+        .filter(|(_, task)| !(hide_completed && task.completed))
+        .collect();
 
-    let len = tasks.len();
-    let maxxed = cmp::max(page, len / PAGE_LENGTH);
-    let start: usize = cmp::min(maxxed * PAGE_LENGTH, 0);
-
-    for i in start..start + 20 {
-        let t = match tasks.get(i) {
-            Some(v) => v,
-            None => continue,
-        };
-        println!("{}", format_task(i, &t));
+    let len = visible_tasks.len();
+    if len == 0 {
+        println!("No tasks found.");
+        return;
     }
-    if len / PAGE_LENGTH <= 1 {
+    let pages = (len + PAGE_LENGTH - 1) / PAGE_LENGTH;
+    let page = cmp::min(requested_page, pages - 1);
+    let start: usize = page * PAGE_LENGTH;
+    let end = cmp::min(start + PAGE_LENGTH, len);
+
+    for (original_index, task) in &visible_tasks[start..end] {
+        println!("{}", format_task(*original_index, task, show_files));
+    }
+    if pages <= 1 {
         return;
     }
     println!(
         "\nPage {} of {}. Use '{} list [PAGE NUMBER]' for more results.",
-        maxxed,
-        len / PAGE_LENGTH,
+        page,
+        pages - 1,
         CMD_NAME
     );
 }
@@ -233,22 +200,64 @@ fn search_task(args: Vec<String>) {
             CMD_NAME
         );
     }
+    let show_files = args.iter().any(|arg| arg == "--files" || arg == "-f");
 
     let tasks = get_tasks();
     let tags = &args[2..];
     for (i, v) in tasks.iter().enumerate() {
-        let mut success = true;
         for tag in tags {
-            if !v.tags.contains(tag) {
-                success = false;
+            // check instead if any tag in v contains an arg inside of it
+            if v.text.contains(tag) || v.tags.iter().filter(|t| t.contains(tag)).count() > 0 {
+                println!("{}", format_task(i, &v, show_files));
                 break;
             }
         }
-        if !success {
+    }
+}
+
+fn attach_files(args: Vec<String>) {
+    if args.len() < 4 {
+        println!(
+            "No task number provided.\nTry '{} help attach' for more details.",
+            CMD_NAME
+        );
+        return;
+    }
+    let task_number: usize = match args[2].parse() {
+        Ok(num) => num,
+        Err(_) => {
+            println!("Invalid task index: {}", args[2]);
+            return;
+        }
+    };
+    let mut tasks = get_tasks();
+    let task = match tasks.get_mut(task_number) {
+        Some(t) => t,
+        None => {
+            println!("Task #{} not found.", task_number);
+            return;
+        }
+    };
+
+    let mut count = 0;
+    for path_str in &args[3..] {
+        let path = std::path::Path::new(path_str);
+        if !path.exists() {
+            println!("Warning: File '{}' does not exist. Skipping.", path_str);
             continue;
         }
-        println!("{}", format_task(i, &v));
+
+        // Convert to stable relative path
+        let safe_path = get_relative_to_todo(path);
+
+        if !task.files.contains(&safe_path) {
+            task.files.push(safe_path);
+            count += 1;
+        }
     }
+
+    save_tasks(tasks);
+    println!("Attached {} file(s) to task #{}.", count, task_number);
 }
 
 fn complete_task(args: Vec<String>) {
@@ -302,25 +311,21 @@ fn main() {
 
     if args.len() < 2 {
         println!("Welcome to Max's custom todo cli!");
-        println!("Version - 0.6.0\n");
+        println!("Version - {}\n", env!("CARGO_PKG_VERSION"));
         do_help(&args);
         return;
     }
 
     //figure out whether user wants to
-    match args[1].as_str() {
+    match match_shortcut(args[1].as_str()) {
         "new" => new_task(args),
-        "n" => new_task(args),
         "add" => add_task(args),
-        "a" => add_task(args),
+        "attach" => attach_files(args),
         "remove" => remove_task(args),
-        "r" => remove_task(args),
         "list" => list_task(args),
-        "l" => list_task(args),
         "search" => search_task(args),
-        "s" => search_task(args),
+        "scan" => scan_tasks(args),
         "complete" => complete_task(args),
-        "c" => complete_task(args),
         "delete" => delete_task(args),
         "clean" => clean_task(),
         &_ => do_help(&args),

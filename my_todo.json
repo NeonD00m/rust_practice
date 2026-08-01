@@ -2,16 +2,90 @@
   {
     "text": "add edit command that gives raw text to user so they can retype",
     "completed": false,
-    "tags": []
-  },
-  {
-    "text": "think about new tools as well",
-    "completed": false,
-    "tags": []
+    "tags": [],
+    "files": []
   },
   {
     "text": "tree and project structure tool that will list out files according to directories and can add lengths optionally",
     "completed": false,
-    "tags": []
+    "tags": [],
+    "files": [
+      "README.md"
+    ]
+  },
+  {
+    "text": "add argument to list that lets you only show incomplete",
+    "completed": false,
+    "tags": [
+      "ux",
+      "fire"
+    ],
+    "files": [
+      "my_todo.json",
+      "todoCli\\src\\main.rs"
+    ]
+  },
+  {
+    "text": "learn how to publish binary so I can install easier without having to do cp commands",
+    "completed": false,
+    "tags": [
+      "WAY LATER"
+    ],
+    "files": []
+  },
+  {
+    "text": "example",
+    "completed": false,
+    "tags": [
+      "fire"
+    ],
+    "files": [
+      "todoCli\\Cargo.lock",
+      "todoCli\\Cargo.toml"
+    ]
+  },
+  {
+    "text": "help_options(), help_full()",
+    "completed": false,
+    "tags": [
+      "code-todo"
+    ],
+    "files": []
+  },
+  {
+    "text": "-- TODO:",
+    "completed": false,
+    "tags": [],
+    "files": []
+  },
+  {
+    "text": "\",",
+    "completed": false,
+    "tags": [
+      "code-todo"
+    ],
+    "files": []
+  },
+  {
+    "text": "test",
+    "completed": false,
+    "tags": [],
+    "files": []
+  },
+  {
+    "text": "huedwrsht",
+    "completed": false,
+    "tags": [],
+    "files": []
+  },
+  {
+    "text": "\") {",
+    "completed": false,
+    "tags": [
+      "code-todo"
+    ],
+    "files": [
+      "todoCli\\src\\scanner.rs"
+    ]
   }
 ]
