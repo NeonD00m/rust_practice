@@ -60,7 +60,13 @@ pub fn get_tasks() -> Vec<Task> {
 }
 
 pub fn save_tasks(tasks: Vec<Task>) {
-    fs::write(find_file(), serde_json::to_string_pretty(&tasks).unwrap()).unwrap();
+    if tasks.len() == 0 {
+        fs::remove_file(find_file()).unwrap_or_else(|_| {
+            eprintln!("Failed to delete task file: {}", find_file());
+        });
+    } else {
+        fs::write(find_file(), serde_json::to_string_pretty(&tasks).unwrap()).unwrap();
+    }
 }
 
 pub fn format_task(index: usize, task: &Task, show_files: bool) -> String {

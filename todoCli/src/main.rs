@@ -12,23 +12,8 @@ fn match_shortcut(cmd: &str) -> &str {
         "l" => "list",
         "s" => "search",
         "c" => "complete",
+        "-v" => "--version",
         &_ => cmd,
-    }
-}
-
-fn help_usage(cmd: &str) -> &str {
-    match cmd {
-        "new" => "[description of task...]",
-        "add" => "[task number] [tags to add...]",
-        "attach" => "[task number] [files to attach...]",
-        "remove" => "[task number] [tags to remove...]",
-        "list" => "[optional: page number] [optional: -i|--incomplete-only]",
-        "search" => "[tags to search...]",
-        "scan" => "[optional: directories/files to scan...]",
-        "complete" => "[task numbers...]",
-        "delete" => "[task numbers...]",
-        "clean" => "",
-        &_ => "",
     }
 }
 
@@ -42,33 +27,102 @@ fn help_desc(cmd: &str) -> &str {
         "search" => "searches tasks by tags",
         "scan" => "scans files and directories for TODO comments to convert",
         "complete" => "completes/uncompletes tasks",
-        "delete" => "deletes tasks",
+        "delete" => "deletes a task",
         "clean" => "deletes all tasks",
+        "help" => "why are you doing this",
         &_ => "",
+    }
+}
+
+fn help_usage(cmd: &str) -> &str {
+    match cmd {
+        "new" => "<DESCRIPTION...>",
+        "add" => "<TASK_ID> <TAGS...>",
+        "attach" => "<TASK_ID> <FILES...>",
+        "remove" => "<TASK_ID> <TAGS...>",
+        "list" => "[PAGE] [FLAGS]",
+        "search" => "<QUERY...> [FLAGS]",
+        "scan" => "[PATHS...]",
+        "complete" => "<TASK_IDs...>",
+        "delete" => "<TASK_ID>",
+        "clean" => "",
+        "help" => "[COMMAND]",
+        &_ => "",
+    }
+}
+
+fn help_flags(cmd: &str) -> Vec<(&str, &str)> {
+    match cmd {
+        "list" => vec![
+            ("-i, --incomplete-only", "show only incomplete tasks"),
+            ("-c, --complete-only", "show only completed tasks"),
+            ("-f, --files", "display attached files underneath tasks"),
+        ],
+        "search" => vec![
+            (
+                "-i, --incomplete-only",
+                "search only within incomplete tasks",
+            ),
+            ("-c, --complete-only", "search only within completed tasks"),
+            (
+                "-f, --files",
+                "display attached files underneath matched tasks",
+            ),
+        ],
+        &_ => Vec::new(),
     }
 }
 
 fn do_help(args: &Vec<String>) {
     if args.len() > 2 {
-        //user asked for help with a specific command
+        // Command-specific help
         let cmd = match_shortcut(args[2].as_str());
-        println!("\nNAME:\n\t\t{}-{} - {}\n", CMD_NAME, cmd, help_desc(cmd));
-        println!("SYNOPSIS:\n\t\t{} {} {}\n", CMD_NAME, cmd, help_usage(cmd));
-        // println!("Extended help for commands coming soon."); // TODO: help_options(), help_full()
-    } else {
-        //output general help and outline
-        println!("Usage: {} [COMMAND]\n", CMD_NAME);
+        let desc = help_desc(cmd);
 
+        if desc.is_empty() {
+            println!(
+                "Unknown command '{}'. Run '{} help' for available commands.",
+                args[2], CMD_NAME
+            );
+            return;
+        }
+
+        println!("\nNAME:");
+        println!("\t{}-{} - {}\n", CMD_NAME, cmd, desc);
+
+        println!("USAGE:");
+        println!("\t{} {} {}\n", CMD_NAME, cmd, help_usage(cmd));
+
+        let flags = help_flags(cmd);
+        if !flags.is_empty() {
+            println!("FLAGS:");
+            for (flag, flag_desc) in flags {
+                println!("\t{:24} {}", flag, flag_desc);
+            }
+            println!();
+        }
+    } else {
+        // General top-level help
+        println!("Usage: {} [COMMAND] [FLAGS]\n", CMD_NAME);
+
+        println!("Commands:");
         println!("\tnew, n          {}", help_desc("new"));
         println!("\tadd, a          {}", help_desc("add"));
-        println!("\tattach, a       {}", help_desc("attach"));
+        println!("\tattach          {}", help_desc("attach"));
         println!("\tremove, r       {}", help_desc("remove"));
         println!("\tlist, l         {}", help_desc("list"));
         println!("\tsearch, s       {}", help_desc("search"));
         println!("\tscan            {}", help_desc("scan"));
         println!("\tcomplete, c     {}", help_desc("complete"));
         println!("\tdelete          {}", help_desc("delete"));
-        println!("\tclean           {}", help_desc("clean"));
+        println!("\tclean           {}\n", help_desc("clean"));
+
+        println!("Flags:");
+        println!("\t-v, --version   prints version information");
+        println!(
+            "\nUse \"{} help [COMMAND]\" for more information on a specific command.",
+            CMD_NAME
+        );
     }
 }
 
@@ -104,7 +158,14 @@ fn add_task(args: Vec<String>) {
     let task_number: usize = args[2].parse().unwrap();
     let mut tasks = get_tasks();
 
-    let tags = &mut tasks.get_mut(task_number).unwrap().tags;
+    let task = match tasks.get_mut(task_number) {
+        Some(t) => t,
+        None => {
+            println!("Task #{} not found.", task_number);
+            return;
+        }
+    };
+    let tags = &mut task.tags;
 
     for i in 3..args.len() {
         match args.get(i) {
@@ -127,7 +188,14 @@ fn remove_task(args: Vec<String>) {
     let task_number: usize = args[2].parse().unwrap();
     let mut tasks = get_tasks();
 
-    let tags = &mut tasks.get_mut(task_number).unwrap().tags;
+    let task = match tasks.get_mut(task_number) {
+        Some(t) => t,
+        None => {
+            println!("Task #{} not found.", task_number);
+            return;
+        }
+    };
+    let tags = &mut task.tags;
 
     for i in 3..args.len() {
         let tag = match args.get(i) {
@@ -154,6 +222,9 @@ fn list_task(args: Vec<String>) {
     let hide_completed = args
         .iter()
         .any(|arg| arg == "--incomplete-only" || arg == "-i");
+    let hide_incompleted = args
+        .iter()
+        .any(|arg| arg == "--complete-only" || arg == "-c");
     let show_files = args.iter().any(|arg| arg == "--files" || arg == "-f");
     let requested_page: usize = args[2..]
         .iter()
@@ -166,11 +237,13 @@ fn list_task(args: Vec<String>) {
     let visible_tasks: Vec<(usize, &Task)> = tasks
         .iter()
         .enumerate()
-        .filter(|(_, task)| !(hide_completed && task.completed))
+        .filter(|(_, task)| {
+            !(hide_completed && task.completed) && !(hide_incompleted && !task.completed)
+        })
         .collect();
 
     let len = visible_tasks.len();
-    if len == 0 {
+    if len < 1 {
         println!("No tasks found.");
         return;
     }
@@ -194,20 +267,36 @@ fn list_task(args: Vec<String>) {
 }
 
 fn search_task(args: Vec<String>) {
-    if args.len() < 3 {
+    let search_terms: Vec<&String> = args[2..]
+        .iter()
+        .filter(|arg| !arg.starts_with('-'))
+        .collect();
+    if search_terms.len() < 1 {
         return println!(
             "No tags to search by provided.\nTry '{} help search' for more details.",
             CMD_NAME
         );
     }
     let show_files = args.iter().any(|arg| arg == "--files" || arg == "-f");
+    let hide_completed = args
+        .iter()
+        .any(|arg| arg == "--incomplete-only" || arg == "-i");
+    let hide_incompleted = args
+        .iter()
+        .any(|arg| arg == "--complete-only" || arg == "-c");
 
     let tasks = get_tasks();
-    let tags = &args[2..];
-    for (i, v) in tasks.iter().enumerate() {
-        for tag in tags {
+    let visible_tasks: Vec<(usize, &Task)> = tasks
+        .iter()
+        .enumerate()
+        .filter(|(_, task)| {
+            !(hide_completed && task.completed) && !(hide_incompleted && !task.completed)
+        })
+        .collect();
+    for (i, v) in visible_tasks {
+        for tag in &search_terms {
             // check instead if any tag in v contains an arg inside of it
-            if v.text.contains(tag) || v.tags.iter().filter(|t| t.contains(tag)).count() > 0 {
+            if v.text.contains(tag.as_str()) || v.tags.iter().any(|t| t.contains(tag.as_str())) {
                 println!("{}", format_task(i, &v, show_files));
                 break;
             }
@@ -274,8 +363,20 @@ fn complete_task(args: Vec<String>) {
     //tasks.get_mut(task_number).unwrap().completed = true;
 
     for i in 2..args.len() {
-        let task_number: usize = args.get(i).unwrap().parse().unwrap();
-        let task = tasks.get_mut(task_number).unwrap();
+        let task_number: usize = match args.get(i).unwrap().parse() {
+            Ok(num) => num,
+            Err(_) => {
+                println!("Invalid task index: {}", args.get(i).unwrap());
+                continue;
+            }
+        };
+        let task = match tasks.get_mut(task_number) {
+            Some(t) => t,
+            None => {
+                println!("Task #{} not found.", task_number);
+                continue;
+            }
+        };
         task.completed = !task.completed;
     }
 
@@ -293,17 +394,19 @@ fn delete_task(args: Vec<String>) {
 
     let task_number: usize = args[2].parse().unwrap();
     let mut tasks = get_tasks();
-
+    if tasks.get(task_number).is_none() {
+        println!("Task #{} not found.", task_number);
+        return;
+    }
     tasks.remove(task_number);
     save_tasks(tasks);
 }
 
 fn clean_task() {
-    if let Err(err) = fs::remove_file(find_file()) {
-        println!("Failed to delete file, error: {}", err);
-    }
-    //fs::remove_file(find_file());
-    //save_tasks(Vec::new());
+    match fs::remove_file(find_file()) {
+        Ok(()) => println!("File deleted successfully."),
+        Err(err) => println!("Failed to delete file, error: {}", err),
+    };
 }
 
 fn main() {
@@ -328,6 +431,7 @@ fn main() {
         "complete" => complete_task(args),
         "delete" => delete_task(args),
         "clean" => clean_task(),
+        "--version" => println!("Version - {}", env!("CARGO_PKG_VERSION")),
         &_ => do_help(&args),
     }
 }
