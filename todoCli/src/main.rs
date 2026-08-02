@@ -2,6 +2,7 @@ pub mod core;
 pub mod scanner;
 use crate::core::*;
 use crate::scanner::scan_tasks;
+use rustyline::{DefaultEditor, error::ReadlineError};
 use std::{cmp, env, fs};
 
 fn match_shortcut(cmd: &str) -> &str {
@@ -12,6 +13,7 @@ fn match_shortcut(cmd: &str) -> &str {
         "l" => "list",
         "s" => "search",
         "c" => "complete",
+        "u" => "undo",
         "-v" => "--version",
         &_ => cmd,
     }
@@ -21,12 +23,14 @@ fn help_desc(cmd: &str) -> &str {
     match cmd {
         "new" => "creates a new task",
         "add" => "adds a tag to a task",
+        "edit" => "edits a task's description",
         "attach" => "attaches files to a task",
         "remove" => "removes a tag from a task",
         "list" => "lists tasks in pages",
         "search" => "searches tasks by tags",
         "scan" => "scans files and directories for TODO comments to convert",
-        "complete" => "completes/uncompletes tasks",
+        "complete" => "completes tasks",
+        "undo" => "uncompletes tasks",
         "delete" => "deletes a task",
         "clean" => "deletes all tasks",
         "help" => "why are you doing this",
@@ -38,6 +42,7 @@ fn help_usage(cmd: &str) -> &str {
     match cmd {
         "new" => "<DESCRIPTION...>",
         "add" => "<TASK_ID> <TAGS...>",
+        "edit" => "<TASK_ID> [FLAGS]",
         "attach" => "<TASK_ID> <FILES...>",
         "remove" => "<TASK_ID> <TAGS...>",
         "list" => "[PAGE] [FLAGS]",
@@ -67,6 +72,16 @@ fn help_flags(cmd: &str) -> Vec<(&str, &str)> {
             (
                 "-f, --files",
                 "display attached files underneath matched tasks",
+            ),
+        ],
+        "edit" => vec![
+            (
+                "-r, --rewrite",
+                "retype description from blank input instead of editing existing description",
+            ),
+            (
+                "-o, --overwrite",
+                "overwrite existing description with description from all non-flag command line arguments",
             ),
         ],
         &_ => Vec::new(),
@@ -108,6 +123,7 @@ fn do_help(args: &Vec<String>) {
         println!("Commands:");
         println!("\tnew, n          {}", help_desc("new"));
         println!("\tadd, a          {}", help_desc("add"));
+        println!("\tedit            {}", help_desc("edit"));
         println!("\tattach          {}", help_desc("attach"));
         println!("\tremove, r       {}", help_desc("remove"));
         println!("\tlist, l         {}", help_desc("list"));
@@ -175,6 +191,75 @@ fn add_task(args: Vec<String>) {
     }
 
     save_tasks(tasks);
+}
+
+fn edit_task(args: Vec<String>) {
+    if args.len() < 3 {
+        println!(
+            "No task number provided.\nTry '{} help edit' for more details.",
+            CMD_NAME
+        );
+        return;
+    }
+    let overwrite = args.iter().any(|arg| arg == "--overwrite" || arg == "-o");
+    let task_number: usize = args[2].parse().unwrap();
+    let mut tasks = get_tasks();
+
+    let task = match tasks.get_mut(task_number) {
+        Some(t) => t,
+        None => {
+            println!("Task #{} not found.", task_number);
+            return;
+        }
+    };
+
+    // overwrite from command line input
+    if overwrite {
+        if args.len() < 4 {
+            println!(
+                "No task description provided.\nTry '{} help edit' for more details.",
+                CMD_NAME
+            );
+            return;
+        }
+        task.text = args[3..]
+            .iter()
+            .filter(|s| !s.starts_with('-'))
+            .cloned()
+            .collect::<Vec<String>>()
+            .join(" ");
+        save_tasks(tasks);
+        return;
+    }
+
+    // get input
+    let rewrite = args.iter().any(|arg| arg == "--rewrite" || arg == "-r");
+    let mut rl = match DefaultEditor::new() {
+        Err(e) => {
+            eprintln!("Failed to load history: {}", e);
+            return;
+        }
+        Ok(r) => r,
+    };
+
+    match rl.readline_with_initial("> ", (if rewrite { "" } else { task.text.as_str() }, "")) {
+        Ok(line) => {
+            if let Err(e) = rl.add_history_entry(line.as_str()) {
+                eprintln!("Failed to add history entry: {}", e);
+            }
+            task.text = line;
+            save_tasks(tasks);
+        }
+        Err(ReadlineError::Eof) => {
+            println!("Input ended unexpectedly. Task not edited.");
+        }
+        Err(ReadlineError::Interrupted) => {
+            println!("Input interrupted. Task not edited.");
+        }
+        Err(err) => {
+            println!("Error reading input: {:?}", err);
+        }
+    };
 }
 
 fn remove_task(args: Vec<String>) {
@@ -349,7 +434,7 @@ fn attach_files(args: Vec<String>) {
     println!("Attached {} file(s) to task #{}.", count, task_number);
 }
 
-fn complete_task(args: Vec<String>) {
+fn complete_task(args: Vec<String>, mark: bool) {
     if args.len() < 3 {
         println!(
             "No task number provided.\nTry '{} help complete' for more details.",
@@ -359,9 +444,7 @@ fn complete_task(args: Vec<String>) {
     }
 
     let mut tasks = get_tasks();
-    //let task_number: usize = args[2].parse().unwrap();
-    //tasks.get_mut(task_number).unwrap().completed = true;
-
+    let mut count = 0;
     for i in 2..args.len() {
         let task_number: usize = match args.get(i).unwrap().parse() {
             Ok(num) => num,
@@ -377,9 +460,14 @@ fn complete_task(args: Vec<String>) {
                 continue;
             }
         };
-        task.completed = !task.completed;
+        task.completed = mark;
+        count += 1;
     }
-
+    println!(
+        "{} {} task(s).",
+        if mark { "Completed" } else { "Uncompleted" },
+        count
+    );
     save_tasks(tasks);
 }
 
@@ -423,12 +511,14 @@ fn main() {
     match match_shortcut(args[1].as_str()) {
         "new" => new_task(args),
         "add" => add_task(args),
+        "edit" => edit_task(args),
         "attach" => attach_files(args),
         "remove" => remove_task(args),
         "list" => list_task(args),
         "search" => search_task(args),
         "scan" => scan_tasks(args),
-        "complete" => complete_task(args),
+        "complete" => complete_task(args, true),
+        "undo" => complete_task(args, false),
         "delete" => delete_task(args),
         "clean" => clean_task(),
         "--version" => println!("Version - {}", env!("CARGO_PKG_VERSION")),
