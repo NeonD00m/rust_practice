@@ -49,6 +49,7 @@ fn help_usage(cmd: &str) -> &str {
         "search" => "<QUERY...> [FLAGS]",
         "scan" => "[PATHS...]",
         "complete" => "<TASK_IDs...>",
+        "undo" => "<TASK_IDs...>",
         "delete" => "<TASK_ID>",
         "clean" => "",
         "help" => "[COMMAND]",
@@ -130,6 +131,7 @@ fn do_help(args: &Vec<String>) {
         println!("\tsearch, s       {}", help_desc("search"));
         println!("\tscan            {}", help_desc("scan"));
         println!("\tcomplete, c     {}", help_desc("complete"));
+        println!("\tundo, u         {}", help_desc("undo"));
         println!("\tdelete          {}", help_desc("delete"));
         println!("\tclean           {}\n", help_desc("clean"));
 
@@ -316,7 +318,8 @@ fn list_task(args: Vec<String>) {
         .filter(|arg| !arg.starts_with('-'))
         .nth(0)
         .and_then(|s| s.parse().ok())
-        .unwrap_or(0);
+        .unwrap_or(1)
+        - 1;
     // Filter tasks FIRST while preserving original indices
     let tasks = get_tasks();
     let visible_tasks: Vec<(usize, &Task)> = tasks
@@ -345,8 +348,8 @@ fn list_task(args: Vec<String>) {
     }
     println!(
         "\nPage {} of {}. Use '{} list [PAGE NUMBER]' for more results.",
-        page,
-        pages - 1,
+        page + 1,
+        pages,
         CMD_NAME
     );
 }
