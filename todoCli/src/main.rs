@@ -10,6 +10,7 @@ fn match_shortcut(cmd: &str) -> &str {
         "n" => "new",
         "a" => "add",
         "r" => "remove",
+        "p" => "print",
         "l" => "list",
         "s" => "search",
         "c" => "complete",
@@ -26,6 +27,7 @@ fn help_desc(cmd: &str) -> &str {
         "edit" => "edits a task's description",
         "attach" => "attaches files to a task",
         "remove" => "removes a tag from a task",
+        "print" => "prints tasks",
         "list" => "lists tasks in pages",
         "search" => "searches tasks by tags",
         "scan" => "scans files and directories for TODO comments to convert",
@@ -45,6 +47,7 @@ fn help_usage(cmd: &str) -> &str {
         "edit" => "<TASK_ID> [FLAGS]",
         "attach" => "<TASK_ID> <FILES...>",
         "remove" => "<TASK_ID> <TAGS...>",
+        "print" => "<TASK_IDs...> [FLAGS]",
         "list" => "[PAGE] [FLAGS]",
         "search" => "<QUERY...> [FLAGS]",
         "scan" => "[PATHS...]",
@@ -59,6 +62,12 @@ fn help_usage(cmd: &str) -> &str {
 
 fn help_flags(cmd: &str) -> Vec<(&str, &str)> {
     match cmd {
+        "print" => vec![
+            ("-c, --completion", "print completion status"),
+            ("-n, --number", "print task numbers"),
+            ("-t, --tags", "print task tags"),
+            ("-f, --files", "print attached files"),
+        ],
         "list" => vec![
             ("-i, --incomplete-only", "show only incomplete tasks"),
             ("-c, --complete-only", "show only completed tasks"),
@@ -127,6 +136,7 @@ fn do_help(args: &Vec<String>) {
         println!("\tedit            {}", help_desc("edit"));
         println!("\tattach          {}", help_desc("attach"));
         println!("\tremove, r       {}", help_desc("remove"));
+        println!("\tprint, p        {}", help_desc("print"));
         println!("\tlist, l         {}", help_desc("list"));
         println!("\tsearch, s       {}", help_desc("search"));
         println!("\tscan            {}", help_desc("scan"));
@@ -305,6 +315,63 @@ fn remove_task(args: Vec<String>) {
     save_tasks(tasks);
 }
 
+fn print_task(args: Vec<String>) {
+    let show_completion = args.iter().any(|arg| arg == "--completion" || arg == "-c");
+    let show_number = args.iter().any(|arg| arg == "--number" || arg == "-n");
+    let show_files = args.iter().any(|arg| arg == "--files" || arg == "-f");
+    let show_tags = args.iter().any(|arg| arg == "--tags" || arg == "-t");
+    let task_ids: Vec<usize> = args[2..]
+        .iter()
+        .filter(|arg| !arg.starts_with('-'))
+        .filter_map(|s| s.parse::<usize>().ok())
+        .collect();
+    let tasks = get_tasks();
+    let visible_tasks: Vec<(usize, &Task)> = tasks
+        .iter()
+        .enumerate()
+        .filter(|(id, _)| task_ids.contains(id))
+        .collect();
+
+    let len = visible_tasks.len();
+    if len < 1 {
+        println!("No tasks found.");
+        return;
+    }
+    for (original_index, task) in &visible_tasks {
+        println!(
+            "{}{}{}{}{}",
+            if show_completion {
+                format!(
+                    " {} ",
+                    if task.completed {
+                        CHECK_MARK
+                    } else {
+                        UNCHECKED
+                    }
+                )
+            } else {
+                String::new()
+            },
+            if show_number {
+                format!("({}) ", original_index)
+            } else {
+                String::new()
+            },
+            if show_tags {
+                format!("[{}] ", task.tags.join(", "))
+            } else {
+                String::new()
+            },
+            task.text,
+            if show_files && !task.files.is_empty() {
+                format!(" 📎 {}", task.files.join(", "))
+            } else {
+                String::new()
+            }
+        );
+    }
+}
+
 fn list_task(args: Vec<String>) {
     let hide_completed = args
         .iter()
@@ -477,7 +544,7 @@ fn complete_task(args: Vec<String>, mark: bool) {
 fn delete_task(args: Vec<String>) {
     if args.len() < 3 {
         println!(
-            "No task bumber provided.\nTry '{} help delete' for more details.",
+            "No task number provided.\nTry '{} help delete' for more details.",
             CMD_NAME
         );
         return;
@@ -517,6 +584,7 @@ fn main() {
         "edit" => edit_task(args),
         "attach" => attach_files(args),
         "remove" => remove_task(args),
+        "print" => print_task(args),
         "list" => list_task(args),
         "search" => search_task(args),
         "scan" => scan_tasks(args),
