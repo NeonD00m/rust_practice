@@ -35,7 +35,7 @@
   },
   {
     "text": "successfully rewritten task!",
-    "completed": false,
+    "completed": true,
     "tags": [
       "fire"
     ],
@@ -53,5 +53,23 @@
     "files": [
       "todoCli\\src\\main.rs"
     ]
+  },
+  {
+    "text": "make pomodoro cli because I'm procrastinating on school work",
+    "completed": true,
+    "tags": [],
+    "files": []
+  },
+  {
+    "text": "laterally procrastinate on school work by only coding palmtree for 24 hours",
+    "completed": true,
+    "tags": [],
+    "files": []
+  },
+  {
+    "text": "use 'todo print <task-number> | palmtree start' to add your todo task to the pomodoro timer UI!",
+    "completed": false,
+    "tags": [],
+    "files": []
   }
 ]
