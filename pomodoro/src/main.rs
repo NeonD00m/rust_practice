@@ -1,8 +1,8 @@
 use crossterm::{
     cursor,
-    event::{self, Event, KeyCode},
+    event::{self, Event, KeyCode, KeyEventKind},
     execute,
-    terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode},
+    terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode, size},
 };
 use notify_rust::Notification;
 use serde::{Deserialize, Serialize};
@@ -249,11 +249,33 @@ fn get_piped_task() -> Option<String> {
     None
 }
 
+fn truncate_str(s: &str, max_len: usize) -> String {
+    if max_len == 0 {
+        return String::new();
+    }
+    let char_count = s.chars().count();
+    if char_count > max_len {
+        if max_len <= 3 {
+            s.chars().take(max_len).collect()
+        } else {
+            let truncated: String = s.chars().take(max_len - 3).collect();
+            format!("{}...", truncated)
+        }
+    } else {
+        s.to_string()
+    }
+}
+
 fn run_timer(duration_secs: u64, initial_elapsed: u64, task: &str, tips: &[&str]) -> bool {
     let _guard = match RawModeGuard::new() {
         Ok(g) => g,
         Err(_) => return false,
     };
+
+    // drain any leftover events because they'll make me angry!! >:(
+    while event::poll(Duration::from_millis(0)).unwrap_or(false) {
+        let _ = event::read();
+    }
 
     let mut stdout = io::stdout();
     let start_time = Instant::now();
@@ -268,18 +290,26 @@ fn run_timer(duration_secs: u64, initial_elapsed: u64, task: &str, tips: &[&str]
         // Handle Input
         if event::poll(Duration::from_millis(100)).unwrap_or(false) {
             if let Ok(Event::Key(key)) = event::read() {
-                match key.code {
-                    KeyCode::Char('q') => return false, // Cancelled
-                    KeyCode::Char('s') => return true,  // Skipped/Completed
-                    KeyCode::Char('p') | KeyCode::Char(' ') => {
-                        if let Some(p_start) = pause_start {
-                            total_paused += p_start.elapsed();
-                            pause_start = None;
-                        } else {
-                            pause_start = Some(Instant::now());
+                if key.kind == KeyEventKind::Press {
+                    match key.code {
+                        KeyCode::Char('q') => {
+                            println!();
+                            return false; // Cancelled
                         }
+                        KeyCode::Char('s') => {
+                            println!();
+                            return true; // Skipped/Completed
+                        }
+                        KeyCode::Char('p') | KeyCode::Char(' ') => {
+                            if let Some(p_start) = pause_start {
+                                total_paused += p_start.elapsed();
+                                pause_start = None;
+                            } else {
+                                pause_start = Some(Instant::now());
+                            }
+                        }
+                        _ => {}
                     }
-                    _ => {}
                 }
             }
         }
@@ -299,12 +329,21 @@ fn run_timer(duration_secs: u64, initial_elapsed: u64, task: &str, tips: &[&str]
         let remaining = duration_secs - total_elapsed;
         let mins = remaining / 60;
         let secs = remaining % 60;
-        let current_tip = tips[(total_elapsed / 60) as usize % tip_length];
+        let raw_tip = tips[(total_elapsed / 60) as usize % tip_length];
         let pause_status = if pause_start.is_some() {
             "  (PAUSED)"
         } else {
             ""
         };
+
+        let (term_cols, _) = size().unwrap_or((80, 24));
+        let max_width = term_cols as usize;
+
+        // Truncate task and tip if they exceed window bounds
+        let task_prefix = "Task: ";
+        let raw_task = if task.is_empty() { "None" } else { task };
+        let display_task = truncate_str(raw_task, max_width.saturating_sub(task_prefix.len()));
+        let display_tip = truncate_str(raw_tip, max_width);
 
         // Render line-by-line to prevent twitching
         write!(
@@ -313,7 +352,7 @@ fn run_timer(duration_secs: u64, initial_elapsed: u64, task: &str, tips: &[&str]
             cursor::MoveUp(3),
             cursor::MoveToColumn(0),
             Clear(ClearType::UntilNewLine),
-            if task.is_empty() { "None" } else { task },
+            display_task,
             cursor::MoveToColumn(0),
             Clear(ClearType::UntilNewLine),
             mins,
@@ -321,7 +360,7 @@ fn run_timer(duration_secs: u64, initial_elapsed: u64, task: &str, tips: &[&str]
             pause_status,
             cursor::MoveToColumn(0),
             Clear(ClearType::UntilNewLine),
-            current_tip,
+            display_tip,
             cursor::MoveToColumn(0),
             Clear(ClearType::UntilNewLine),
         )
