@@ -63,6 +63,7 @@ fn help_usage(cmd: &str) -> &str {
 fn help_flags(cmd: &str) -> Vec<(&str, &str)> {
     match cmd {
         "print" => vec![
+            ("--all", "print all optional flag fields"),
             ("-c, --completion", "print completion status"),
             ("-n, --number", "print task numbers"),
             ("-t, --tags", "print task tags"),
@@ -316,10 +317,11 @@ fn remove_task(args: Vec<String>) {
 }
 
 fn print_task(args: Vec<String>) {
-    let show_completion = args.iter().any(|arg| arg == "--completion" || arg == "-c");
-    let show_number = args.iter().any(|arg| arg == "--number" || arg == "-n");
-    let show_files = args.iter().any(|arg| arg == "--files" || arg == "-f");
-    let show_tags = args.iter().any(|arg| arg == "--tags" || arg == "-t");
+    let show_all = args.iter().any(|arg| arg == "--all");
+    let show_completion = show_all || args.iter().any(|arg| arg == "--completion" || arg == "-c");
+    let show_number = show_all || args.iter().any(|arg| arg == "--number" || arg == "-n");
+    let show_files = show_all || args.iter().any(|arg| arg == "--files" || arg == "-f");
+    let show_tags = show_all || args.iter().any(|arg| arg == "--tags" || arg == "-t");
     let task_ids: Vec<usize> = args[2..]
         .iter()
         .filter(|arg| !arg.starts_with('-'))
