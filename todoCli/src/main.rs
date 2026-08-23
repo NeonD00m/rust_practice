@@ -26,6 +26,7 @@ fn help_desc(cmd: &str) -> &str {
         "add" => "adds a tag to a task",
         "edit" => "edits a task's description",
         "attach" => "attaches files to a task",
+        "detach" => "detaches files to a task",
         "remove" => "removes a tag from a task",
         "print" => "prints tasks",
         "list" => "lists tasks in pages",
@@ -46,6 +47,7 @@ fn help_usage(cmd: &str) -> &str {
         "add" => "<TASK_ID> <TAGS...>",
         "edit" => "<TASK_ID> [FLAGS]",
         "attach" => "<TASK_ID> <FILES...>",
+        "detach" => "<TASK_ID> <FILES...>",
         "remove" => "<TASK_ID> <TAGS...>",
         "print" => "<TASK_IDs...> [FLAGS]",
         "list" => "[PAGE] [FLAGS]",
@@ -80,6 +82,10 @@ fn help_flags(cmd: &str) -> Vec<(&str, &str)> {
                 "search only within incomplete tasks",
             ),
             ("-c, --complete-only", "search only within completed tasks"),
+            (
+                "-t, --text-only",
+                "search only for terms in the tasks' text contents, not tags",
+            ),
             (
                 "-f, --files",
                 "display attached files underneath matched tasks",
@@ -136,6 +142,7 @@ fn do_help(args: &Vec<String>) {
         println!("\tadd, a          {}", help_desc("add"));
         println!("\tedit            {}", help_desc("edit"));
         println!("\tattach          {}", help_desc("attach"));
+        println!("\tdetach         {}", help_desc("detach"));
         println!("\tremove, r       {}", help_desc("remove"));
         println!("\tprint, p        {}", help_desc("print"));
         println!("\tlist, l         {}", help_desc("list"));
@@ -441,6 +448,7 @@ fn search_task(args: Vec<String>) {
     let hide_incompleted = args
         .iter()
         .any(|arg| arg == "--complete-only" || arg == "-c");
+    let search_text = args.iter().any(|arg| arg == "--text-only" || arg == "-t");
 
     let tasks = get_tasks();
     let visible_tasks: Vec<(usize, &Task)> = tasks
@@ -451,12 +459,23 @@ fn search_task(args: Vec<String>) {
         })
         .collect();
     for (i, v) in visible_tasks {
+        let mut print = true;
         for tag in &search_terms {
-            // check instead if any tag in v contains an arg inside of it
-            if v.text.contains(tag.as_str()) || v.tags.iter().any(|t| t.contains(tag.as_str())) {
-                println!("{}", format_task(i, &v, show_files));
-                break;
+            if search_text {
+                if !v.text.contains(tag.as_str()) {
+                    print = false;
+                    break;
+                }
+            } else {
+                // check instead if v has every tag
+                if v.tags.iter().find(|t| t == tag).is_none() {
+                    print = false;
+                    break;
+                }
             }
+        }
+        if print {
+            println!("{}", format_task(i, &v, show_files));
         }
     }
 }
@@ -504,6 +523,51 @@ fn attach_files(args: Vec<String>) {
 
     save_tasks(tasks);
     println!("Attached {} file(s) to task #{}.", count, task_number);
+}
+
+fn detach_files(args: Vec<String>) {
+    if args.len() < 4 {
+        println!(
+            "No task number provided.\nTry '{} help attach' for more details.",
+            CMD_NAME
+        );
+        return;
+    }
+    let task_number: usize = match args[2].parse() {
+        Ok(num) => num,
+        Err(_) => {
+            println!("Invalid task index: {}", args[2]);
+            return;
+        }
+    };
+    let mut tasks = get_tasks();
+    let task = match tasks.get_mut(task_number) {
+        Some(t) => t,
+        None => {
+            println!("Task #{} not found.", task_number);
+            return;
+        }
+    };
+
+    let mut count = 0;
+    for path_str in &args[3..] {
+        let path = std::path::Path::new(path_str);
+        if !path.exists() {
+            println!("Warning: File '{}' does not exist. Skipping.", path_str);
+            continue;
+        }
+
+        // Convert to stable relative path
+        let safe_path = get_relative_to_todo(path);
+
+        if let Some(i) = task.files.iter().position(|f| f == &safe_path) {
+            task.files.remove(i);
+            count += 1;
+        }
+    }
+
+    save_tasks(tasks);
+    println!("detached {} file(s) to task #{}.", count, task_number);
 }
 
 fn complete_task(args: Vec<String>, mark: bool) {
@@ -585,6 +649,7 @@ fn main() {
         "add" => add_task(args),
         "edit" => edit_task(args),
         "attach" => attach_files(args),
+        "detach" => detach_files(args),
         "remove" => remove_task(args),
         "print" => print_task(args),
         "list" => list_task(args),
