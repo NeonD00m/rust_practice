@@ -5,6 +5,7 @@ use crossterm::{
     terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode, size},
 };
 use notify_rust::Notification;
+use rand::{rng, seq::SliceRandom};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
@@ -24,46 +25,62 @@ const BREAK_TIPS: &[&str] = &[
     "Step away from the screen; let your mind process in the background.",
     "Unclench your jaw, drop your shoulders, and relax your posture.",
 ];
+const CONFIG_VERSION: u8 = 2;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Config {
+    #[serde(default)]
+    version: u8,
     work_mins: u64,
     short_break_mins: u64,
     long_break_mins: u64,
     cycles: u64,
     bell: bool,
     notification: bool,
+    #[serde(default)]
+    wait: bool,
+    #[serde(default)]
+    bell_interval_secs: u64,
 }
 
 impl Config {
     // default pomodoro settings
     pub const DEFAULT: Self = Self {
+        version: CONFIG_VERSION,
         work_mins: 25,
         short_break_mins: 5,
         long_break_mins: 15,
         cycles: 4,
         bell: true,
         notification: true,
+        wait: false,
+        bell_interval_secs: 10,
     };
 
     // desktime "golden ratio" work settings
     pub const DESKTIME: Self = Self {
+        version: CONFIG_VERSION,
         work_mins: 52,
         short_break_mins: 17,
         long_break_mins: 17,
         cycles: 4,
         bell: false,
         notification: true,
+        wait: false,
+        bell_interval_secs: 10,
     };
 
     // ultradian rhythm deep work settings
     pub const FLOW: Self = Self {
+        version: CONFIG_VERSION,
         work_mins: 90,
         short_break_mins: 10,
         long_break_mins: 10,
         cycles: 4,
         bell: false,
         notification: false,
+        wait: false,
+        bell_interval_secs: 10,
     };
 
     fn config_path() -> Option<PathBuf> {
@@ -80,23 +97,63 @@ impl Config {
             return Self::DEFAULT;
         }
 
-        fs::read_to_string(path)
-            .ok()
-            .and_then(|contents| serde_json::from_str(&contents).ok())
-            .unwrap_or(Self::DEFAULT)
+        let contents = match fs::read_to_string(path.clone()) {
+            Ok(c) => c,
+            Err(_) => {
+                println!(
+                    "Error: Config file at {} could not be read.",
+                    path.display()
+                );
+                return Self::DEFAULT;
+            }
+        };
+
+        let conf: Config = match serde_json::from_str(&contents) {
+            Ok(c) => c,
+            Err(_) => {
+                println!(
+                    "Error: Config file could not be parsed. If modified, check for invalid syntax, else fix manually at {} or with `{} save`",
+                    path.display(),
+                    CMD_NAME
+                );
+                return Self::DEFAULT;
+            }
+        };
+        if conf.version == CONFIG_VERSION {
+            conf
+        } else {
+            println!(
+                "Out of date config: version {} =/= {}\nUpdate manually at {} or use `{} save`",
+                conf.version,
+                CONFIG_VERSION,
+                path.display(),
+                CMD_NAME
+            );
+            Self::DEFAULT
+        }
     }
 
-    pub fn save_default_if_missing() {
+    pub fn save(conf: &Config) -> bool {
         if let Some(path) = Self::config_path() {
             if !path.exists() {
                 if let Some(parent) = path.parent() {
+                    println!("Creating directories...");
                     let _ = fs::create_dir_all(parent);
-                }
-                if let Ok(json) = serde_json::to_string_pretty(&Self::DEFAULT) {
-                    let _ = fs::write(path, json);
+                } else {
+                    println!("Error: Failed to create all directories.");
+                    return false;
                 }
             }
+            if let Ok(json) = serde_json::to_string_pretty(conf) {
+                println!("Writing to file...");
+                return fs::write(path, json).is_ok();
+            } else {
+                println!("Error: Failed to serialize config.");
+            }
+        } else {
+            println!("Error: Can't save config file because path doesn't exist.");
         }
+        false
     }
 }
 
@@ -136,6 +193,7 @@ fn help_desc(cmd: &str) -> &str {
     match cmd {
         "start" => "starts a pomodoro session at the first work timer",
         "break" => "starts a standalone break timer with the short break duration",
+        "save" => "saves specified config settings to the configuration file",
         &_ => "",
     }
 }
@@ -144,6 +202,7 @@ fn help_usage(cmd: &str) -> &str {
     match cmd {
         "start" => "[TASK] [FLAGS]",
         "break" => "[TASK] [FLAGS]",
+        "save" => "[FLAGS]",
         "help" => "[COMMAND]",
         &_ => "",
     }
@@ -151,10 +210,16 @@ fn help_usage(cmd: &str) -> &str {
 
 fn help_flags() {
     println!("\t-v, --version            prints version information");
+    println!("\t--config                 prints config json file path---edit more settings here!");
     println!(
-        "\t--config                 prints config json file path---edit this to change default settings!"
+        "\t-p, --print              prints the current config settings the program is running with after modifications"
     );
-    println!("\t-a, --ago                subtracts specified minutes from timer");
+    println!(
+        "\t-a, --ago                subtracts specified minutes from the first timer (not in config)"
+    );
+    println!(
+        "\t--wait                   waits (and plays bell if on) until you unpause to end the timer"
+    );
     println!("\t-w, --work               sets work timer length in minutes");
     println!("\t-s, --short              sets short break length in minutes");
     println!("\t-l, --long               sets long break length in minutes");
@@ -207,24 +272,28 @@ fn do_help(args: &Vec<String>) {
 }
 
 // ======================== TIMER FUNCTIONALITY ========================
-fn value_flag(args: &Vec<String>, short_flag: &str, long_flag: &str) -> Option<String> {
+fn value_flag(args: &[String], short_flag: &str, long_flag: &str) -> Option<String> {
     args.iter()
         .position(|arg| arg == short_flag || arg == long_flag)
         .and_then(|pos| args.get(pos + 1).cloned())
 }
 
-fn number_flag(args: &Vec<String>, short_flag: &str, long_flag: &str, default: u64) -> u64 {
+fn number_flag(args: &[String], short_flag: &str, long_flag: &str, default: u64) -> u64 {
     value_flag(args, short_flag, long_flag)
         .and_then(|val| val.parse::<u64>().ok())
         .unwrap_or(default)
 }
 
+// fn trigger_bell(conf: &Config) {
+//     // 1. Terminal audio bell
+//     if conf.bell {
+//         print!("\x07");
+//         let _ = io::stdout().flush();
+//         // exit(0)
+//     }
+// }
+
 fn trigger_alert(title: &str, body: &str, conf: &Config) {
-    // 1. Terminal audio bell
-    if conf.bell {
-        print!("\x07");
-        let _ = io::stdout().flush();
-    }
     // 2. Desktop Notification
     if conf.notification {
         let _ = Notification::new()
@@ -266,7 +335,13 @@ fn truncate_str(s: &str, max_len: usize) -> String {
     }
 }
 
-fn run_timer(duration_secs: u64, initial_elapsed: u64, task: &str, tips: &[&str]) -> bool {
+fn run_timer(
+    duration_secs: u64,
+    initial_elapsed: u64,
+    task: &str,
+    tips: &[&str],
+    conf: &Config,
+) -> bool {
     let _guard = match RawModeGuard::new() {
         Ok(g) => g,
         Err(_) => return false,
@@ -282,35 +357,45 @@ fn run_timer(duration_secs: u64, initial_elapsed: u64, task: &str, tips: &[&str]
     let mut total_paused = Duration::from_secs(0);
     let mut pause_start: Option<Instant> = None;
     let tip_length = tips.len();
+    let mut to_wait = conf.wait;
+    let mut waiting = false;
+    let mut bell_intervals = 0;
 
     // Print initial blank lines so cursor movement won't overflow the screen top
     println!("\n\n\n\n");
 
     loop {
         // Handle Input
-        if event::poll(Duration::from_millis(100)).unwrap_or(false) {
-            if let Ok(Event::Key(key)) = event::read() {
-                if key.kind == KeyEventKind::Press {
-                    match key.code {
-                        KeyCode::Char('q') => {
-                            println!();
-                            return false; // Cancelled
-                        }
-                        KeyCode::Char('s') => {
-                            println!();
-                            return true; // Skipped/Completed
-                        }
-                        KeyCode::Char('p') | KeyCode::Char(' ') => {
-                            if let Some(p_start) = pause_start {
-                                total_paused += p_start.elapsed();
-                                pause_start = None;
-                            } else {
-                                pause_start = Some(Instant::now());
-                            }
-                        }
-                        _ => {}
+        if event::poll(Duration::from_millis(100)).unwrap_or(false)
+            && let Ok(Event::Key(key)) = event::read()
+            && key.kind == KeyEventKind::Press
+        {
+            match key.code {
+                KeyCode::Char('q') => {
+                    println!();
+                    return false; // Cancelled
+                }
+                KeyCode::Char('s') => {
+                    println!();
+                    return true; // Skipped/Completed
+                }
+                KeyCode::Char('p') | KeyCode::Char(' ') => {
+                    if let Some(p_start) = pause_start {
+                        total_paused += p_start.elapsed();
+                        pause_start = None;
+                        waiting = false;
+                    } else {
+                        pause_start = Some(Instant::now());
                     }
                 }
+                KeyCode::Char('w') => {
+                    to_wait = !to_wait;
+                    if !to_wait && waiting {
+                        waiting = false;
+                        pause_start = None;
+                    }
+                }
+                _ => {}
             }
         }
 
@@ -322,19 +407,48 @@ fn run_timer(duration_secs: u64, initial_elapsed: u64, task: &str, tips: &[&str]
 
         let total_elapsed = elapsed_active.as_secs() + initial_elapsed;
 
+        let mut add_bell = false;
         if total_elapsed >= duration_secs {
-            return true;
+            if let Some(start) = pause_start {
+                let intervals = start.elapsed().as_secs() / conf.bell_interval_secs;
+                if intervals > bell_intervals {
+                    add_bell = true;
+                    bell_intervals = intervals;
+                }
+            } else {
+                if !to_wait {
+                    // Play end-of-timer bell cleanly
+                    if conf.bell {
+                        print!("\x07");
+                        let _ = io::stdout().flush();
+                        // Give the terminal time to process the sound before the buffer wipes
+                        std::thread::sleep(Duration::from_millis(50));
+                    }
+                    return true;
+                }
+                add_bell = true;
+                pause_start = Some(Instant::now());
+                waiting = true;
+            }
         }
 
         let remaining = duration_secs - total_elapsed;
         let mins = remaining / 60;
         let secs = remaining % 60;
         let raw_tip = tips[(total_elapsed / 60) as usize % tip_length];
-        let pause_status = if pause_start.is_some() {
-            "  (PAUSED)"
+        let mut pause_status = if let Some(start) = pause_start {
+            let elapsed = start.elapsed().as_secs();
+            if waiting {
+                format!("  (WAITING {:02}:{:02})", elapsed / 60, elapsed % 60)
+            } else {
+                format!("  (PAUSED {:02}:{:02})", elapsed / 60, elapsed % 60)
+            }
         } else {
-            ""
+            String::new()
         };
+        if add_bell {
+            pause_status.push_str("\x07");
+        }
 
         let (term_cols, _) = size().unwrap_or((80, 24));
         let max_width = term_cols as usize;
@@ -348,7 +462,7 @@ fn run_timer(duration_secs: u64, initial_elapsed: u64, task: &str, tips: &[&str]
         // Render line-by-line to prevent twitching
         write!(
             stdout,
-            "{}{}{}Task: {}\n{}{}\t🏝️    {:02}:{:02}  🏝️{}\n{}{}{}\n{}{}[p]ause  [s]kip  [q]uit",
+            "{}{}{}Task: {}\n{}{}\t🏝️    {:02}:{:02}  🏝️{}\n{}{}{}\n{}{}[p]ause  [w]ait ({})  [s]kip  [q]uit",
             cursor::MoveUp(3),
             cursor::MoveToColumn(0),
             Clear(ClearType::UntilNewLine),
@@ -363,29 +477,43 @@ fn run_timer(duration_secs: u64, initial_elapsed: u64, task: &str, tips: &[&str]
             display_tip,
             cursor::MoveToColumn(0),
             Clear(ClearType::UntilNewLine),
+            if to_wait {
+                "◼"
+            } else {
+                "◻"
+            }
         )
         .unwrap();
 
         stdout.flush().unwrap();
+
+        // Trigger interval bell cleanly AFTER the UI frame is fully drawn
+        if add_bell && waiting && conf.bell {
+            print!("\x07");
+            let _ = io::stdout().flush();
+        }
     }
 }
 
 fn run_pomodoro_session(conf: &Config, task: Option<&str>, mut ago: u64) {
     let mut cycle = 1;
+    let mut rng = rng();
+    let mut break_tips = BREAK_TIPS.to_owned();
 
     loop {
         // Work Session
         let work_title = format!("Work Cycle #{}", cycle);
-        // trigger_alert(
-        //     "Pomodoro Started",
-        //     &format!("Focus time! Cycle #{}", cycle),
-        //     conf,
-        // );
+        trigger_alert(
+            "Pomodoro Started",
+            &format!("Focus time! Cycle #{}", cycle),
+            conf,
+        );
         let work_done = run_timer(
             conf.work_mins * 60,
             ago * 60,
             task.unwrap_or(work_title.as_str()),
             WORK_TIPS,
+            conf,
         );
         ago = 0;
 
@@ -411,13 +539,16 @@ fn run_pomodoro_session(conf: &Config, task: Option<&str>, mut ago: u64) {
             None => break_title.to_string(),
         };
 
+        // Shuffle break tips
+        break_tips.shuffle(&mut rng);
+
         // Break Session
         trigger_alert(
             "Time for a break!",
             &format!("Take a {} minute rest.", break_mins),
             conf,
         );
-        let break_done = run_timer(break_mins * 60, 0, &label, BREAK_TIPS);
+        let break_done = run_timer(break_mins * 60, 0, &label, &break_tips, conf);
 
         if !break_done {
             println!("\nSession cancelled during break.");
@@ -438,8 +569,10 @@ fn main() {
         return;
     }
 
+    let mut help = true;
     if args.iter().any(|arg| arg == "--version" || arg == "-v") {
-        println!("Version - {}", env!("CARGO_PKG_VERSION"))
+        println!("Version - {}", env!("CARGO_PKG_VERSION"));
+        help = false;
     }
 
     if args.iter().any(|arg| arg == "--config") {
@@ -449,6 +582,8 @@ fn main() {
                 .unwrap_or_else(|| PathBuf::from("No config path available"))
                 .display()
         );
+        println!("Expected Config Version - {}", CONFIG_VERSION);
+        help = false;
     }
 
     let mut conf = if args.iter().any(|arg| arg == "-f" || arg == "--flow") {
@@ -458,7 +593,6 @@ fn main() {
     } else {
         Config::load()
     };
-    Config::save_default_if_missing();
 
     // use flags like -w, -s, -l, -c to modify AFTER base config
     conf.work_mins = number_flag(&args, "-w", "--work", conf.work_mins);
@@ -470,20 +604,67 @@ fn main() {
         .iter()
         .any(|arg| arg == "-n" || arg == "--no-notification")
         && conf.notification;
+    conf.wait = args.iter().any(|arg| arg == "--wait") || conf.wait;
     let ago = number_flag(&args, "-a", "--ago", 0);
 
+    if args.iter().any(|arg| arg == "--print" || arg == "-p") {
+        println!(
+            "Running with Config:\n\tversion = {}\n\twork_mins = {}\n\tshort_break_mins = {}\n\tlong_break_mins = {}\n\tcycles = {}\n\tbell = {}\n\tnotification = {}\n\twait = {}\n\tbell_interval_secs = {}",
+            conf.version,
+            conf.work_mins,
+            conf.short_break_mins,
+            conf.long_break_mins,
+            conf.cycles,
+            conf.bell,
+            conf.notification,
+            conf.wait,
+            conf.bell_interval_secs
+        )
+    }
+
     match match_shortcut(args[1].as_str()) {
-        "start" => run_pomodoro_session(&conf, get_piped_task().as_deref(), ago),
-        "break" => {
-            let task = get_piped_task().unwrap_or_else(|| {
-                if args.len() > 2 && !args[2].starts_with('-') {
-                    args[2].clone()
-                } else {
-                    String::from("No task provided")
-                }
-            });
-            run_timer(conf.short_break_mins * 60, ago * 60, &task, BREAK_TIPS);
+        "start" => {
+            let piped_task = get_piped_task();
+            let task = if let Some(t) = &piped_task {
+                Some(t.as_str())
+            } else if args.len() > 2 && !args[2].starts_with('-') {
+                Some(args[2].as_str())
+            } else {
+                None
+            };
+            run_pomodoro_session(&conf, task, ago)
         }
-        &_ => do_help(&args),
+        "break" => {
+            let piped_task = get_piped_task();
+            let task = if let Some(t) = &piped_task {
+                t.as_str()
+            } else if args.len() > 2 && !args[2].starts_with('-') {
+                args[2].as_str()
+            } else {
+                "No task provided"
+            };
+
+            run_timer(
+                conf.short_break_mins * 60,
+                ago * 60,
+                task,
+                BREAK_TIPS,
+                &conf,
+            );
+        }
+        "save" => {
+            println!("Saving Config...");
+            if Config::save(&conf) {
+                println!("Successfully saved!")
+            } else {
+                println!("Save failed.");
+            };
+        }
+        "help" => do_help(&args),
+        &_ => {
+            if help {
+                do_help(&args)
+            }
+        }
     }
 }

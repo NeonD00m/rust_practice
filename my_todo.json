@@ -71,5 +71,29 @@
     "completed": false,
     "tags": [],
     "files": []
+  },
+  {
+    "text": "make -v not show help message",
+    "completed": true,
+    "tags": [],
+    "files": []
+  },
+  {
+    "text": "show timer for pause duration that counts up to show how long you have paused for",
+    "completed": true,
+    "tags": [],
+    "files": []
+  },
+  {
+    "text": "fix possible bug where the same tips show up each time, shuffle them",
+    "completed": true,
+    "tags": [],
+    "files": []
+  },
+  {
+    "text": "add wait feature or option to toggle during timer",
+    "completed": true,
+    "tags": [],
+    "files": []
   }
 ]
