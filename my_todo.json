@@ -95,5 +95,71 @@
     "completed": true,
     "tags": [],
     "files": []
+  },
+  {
+    "text": "create a new task with 'todo n hello world' (quotes not necessary because I was too lazy to type quotes when I first wrote todo)",
+    "completed": false,
+    "tags": [
+      "intro"
+    ],
+    "files": []
+  },
+  {
+    "text": "the search command, the one you just used, searches all the tasks for tasks with all the **tags** you add to the query (just 'intro' in our case)",
+    "completed": false,
+    "tags": [
+      "intro"
+    ],
+    "files": []
+  },
+  {
+    "text": "view all pending items with 'todo list' (use 'todo help <cmd>' to learn about flags and args!)",
+    "completed": false,
+    "tags": [
+      "intro"
+    ],
+    "files": []
+  },
+  {
+    "text": "mark a task complete with the task number: 'todo complete 16' (or mark uncompleted with 'todo undo')",
+    "completed": false,
+    "tags": [
+      "intro"
+    ],
+    "files": []
+  },
+  {
+    "text": "edit this task with 'todo edit 17'",
+    "completed": false,
+    "tags": [
+      "intro"
+    ],
+    "files": []
+  },
+  {
+    "text": "attach files to tasks (like shown on 19) with `todo attach` or detach like my ex with `todo detach` (no hate)",
+    "completed": false,
+    "tags": [
+      "intro"
+    ],
+    "files": []
+  },
+  {
+    "text": "install palmtree with 'cargo install --path ./pomodoro'",
+    "completed": false,
+    "tags": [
+      "intro"
+    ],
+    "files": [
+      "pomodoro\\Cargo.toml"
+    ]
+  },
+  {
+    "text": "now use 'palmtree start <your next task>' to get back to work :) (or use the 'help' commands to learn more)",
+    "completed": false,
+    "tags": [
+      "intro"
+    ],
+    "files": []
   }
 ]
