@@ -172,7 +172,7 @@
   },
   {
     "text": "todo importing/exporting from md",
-    "completed": false,
+    "completed": true,
     "tags": [
       "0.9"
     ],
@@ -180,7 +180,7 @@
   },
   {
     "text": "allow using multiple todo files? and specifying between?",
-    "completed": false,
+    "completed": true,
     "tags": [
       "0.9"
     ],
