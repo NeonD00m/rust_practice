@@ -58,7 +58,6 @@ pub fn find_file() -> PathBuf {
     if !default.exists() {
         // recursively check parent directory until we find a file or there is no parent
         loop {
-            println!("Checking directory: {}", new_dir.display());
             // end search if we have changed devices
             if let Ok(id) = get_volume_id(new_dir)
                 && id != initial_id
@@ -69,7 +68,6 @@ pub fn find_file() -> PathBuf {
 
             // check to see if we find the target file
             if new_dir.join(FILE_NAME).exists() {
-                println!("Found todo!");
                 return new_dir.join(FILE_NAME);
             }
             new_dir = match new_dir.parent() {
@@ -81,7 +79,6 @@ pub fn find_file() -> PathBuf {
             };
         }
     };
-    println!("Base case");
     return default;
 }
 
@@ -124,33 +121,4 @@ pub fn save_tasks(tasks: Vec<Task>, path: &Path) {
         serde_json::to_string_pretty(&tasks).expect("Error formatting JSON."),
     )
     .expect("Error writing to todo file.");
-}
-
-pub fn format_task(index: usize, task: &Task, show_files: bool) -> String {
-    let mut output = format!(
-        " {} ({}) [{}] {}",
-        if task.completed {
-            CHECK_MARK
-        } else {
-            UNCHECKED
-        },
-        index,
-        task.tags.join(", "),
-        task.text
-    );
-
-    // Format files conditionally underneath using a tree structure
-    if show_files && !task.files.is_empty() {
-        for (i, file) in task.files.iter().enumerate() {
-            // Use a different arrow character for the last item
-            let connector = if i == task.files.len() - 1 {
-                "└──"
-            } else {
-                "├──"
-            };
-            output.push_str(&format!("\n {} {}", connector, file));
-        }
-    }
-
-    output
 }
