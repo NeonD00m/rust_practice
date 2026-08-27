@@ -1,6 +1,7 @@
+use file-id::FileId;
 use serde::Deserialize;
 use serde::Serialize;
-use std::{env, fs};
+use std::{env, fs, io, path::Path};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Task {
@@ -14,20 +15,47 @@ pub struct Task {
 pub const CMD_NAME: &str = "todo";
 pub const FILE_NAME: &str = "my_todo.json";
 pub const PAGE_LENGTH: usize = 10;
-pub const CHECK_MARK: char = '🗹'; //✓🗹';
-pub const UNCHECKED: char = '☐'; //☐';
+pub const CHECK_MARK: char = '🗹';
+pub const UNCHECKED: char = '☐';
+
+fn get_volume_id(path: &Path) -> io::Result<u64> {
+    let file = fs::File::open(path)?;
+    let id = FileId::from_file(&file)?;
+
+    // On Unix, this represents the `st_dev` device ID.
+    // On Windows, it extracts the native Volume Serial Number safely on Stable.
+    Ok(id.device_number())
+}
 
 pub fn find_file() -> String {
-    let file_path;
     let current_dir = env::current_dir().unwrap();
-    let new_dir = &current_dir.parent().unwrap().join(FILE_NAME);
-    if !fs::metadata(FILE_NAME).is_ok() && fs::metadata(new_dir).is_ok() {
-        //if not found check in parent directory
-        file_path = new_dir.to_str().unwrap().to_owned();
-    } else {
-        file_path = FILE_NAME.to_string();
+    let initial_id = match get_volume_id(&current_dir) {
+        Ok(id) => id,
+        Err(_) => return FILE_NAME.to_string(), // Skip files where metadata permissions are blocked
     };
-    return file_path;
+    let mut new_dir = current_dir.as_path();
+    if !fs::metadata(FILE_NAME).is_ok() {
+        // recursively check parent directory until we find a file or there is no parent
+        loop {
+            new_dir = match new_dir.parent() {
+                Some(p) => p,
+                None => break,
+            };
+
+            // end search if we have changed devices
+            if let Ok(id) = get_volume_id(new_dir)
+                && id != initial_id
+            {
+                break;
+            }
+
+            // check to see if we find the target file
+            if fs::metadata(new_dir.join(FILE_NAME)).is_ok() {
+                return new_dir.to_str().unwrap().to_owned();
+            }
+        }
+    };
+    return FILE_NAME.to_string();
 }
 
 pub fn get_relative_to_todo(target_path: &std::path::Path) -> String {

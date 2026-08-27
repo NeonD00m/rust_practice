@@ -161,5 +161,29 @@
       "intro"
     ],
     "files": []
+  },
+  {
+    "text": "taking in piped inputs for task creation/tagging/files",
+    "completed": false,
+    "tags": [
+      "0.9"
+    ],
+    "files": []
+  },
+  {
+    "text": "todo importing/exporting from md",
+    "completed": false,
+    "tags": [
+      "0.9"
+    ],
+    "files": []
+  },
+  {
+    "text": "allow using multiple todo files? and specifying between?",
+    "completed": false,
+    "tags": [
+      "0.9"
+    ],
+    "files": []
   }
 ]
