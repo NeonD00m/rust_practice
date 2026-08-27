@@ -1,7 +1,10 @@
-use file-id::FileId;
+use file_id::{FileId, get_file_id};
 use serde::Deserialize;
 use serde::Serialize;
-use std::{env, fs, io, path::Path};
+use std::{
+    env, fs, io,
+    path::{Path, PathBuf},
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Task {
@@ -19,59 +22,81 @@ pub const CHECK_MARK: char = '🗹';
 pub const UNCHECKED: char = '☐';
 
 fn get_volume_id(path: &Path) -> io::Result<u64> {
-    let file = fs::File::open(path)?;
-    let id = FileId::from_file(&file)?;
+    let id = get_file_id(path)?;
 
-    // On Unix, this represents the `st_dev` device ID.
-    // On Windows, it extracts the native Volume Serial Number safely on Stable.
-    Ok(id.device_number())
+    // destructure enum to get device/volume serial identifier
+    Ok(match id {
+        FileId::Inode { device_id, .. } => device_id,
+        FileId::LowRes {
+            volume_serial_number,
+            ..
+        } => volume_serial_number as u64,
+        FileId::HighRes {
+            volume_serial_number,
+            ..
+        } => volume_serial_number,
+    })
 }
 
-pub fn find_file() -> String {
-    let current_dir = env::current_dir().unwrap();
+pub fn find_file() -> PathBuf {
+    if let Ok(s) = env::var("TODO_FILE")
+        && let p = PathBuf::from(s)
+        && p.exists()
+    {
+        return p;
+    }
+    let current_dir = env::current_dir().expect("Error getting current directory.");
+    let default = PathBuf::from(FILE_NAME.to_string());
     let initial_id = match get_volume_id(&current_dir) {
         Ok(id) => id,
-        Err(_) => return FILE_NAME.to_string(), // Skip files where metadata permissions are blocked
+        Err(_) => {
+            println!("Warning: No Initial Volume Id");
+            return default;
+        } // Skip files where metadata permissions are blocked
     };
     let mut new_dir = current_dir.as_path();
-    if !fs::metadata(FILE_NAME).is_ok() {
+    if !default.exists() {
         // recursively check parent directory until we find a file or there is no parent
         loop {
-            new_dir = match new_dir.parent() {
-                Some(p) => p,
-                None => break,
-            };
-
+            println!("Checking directory: {}", new_dir.display());
             // end search if we have changed devices
             if let Ok(id) = get_volume_id(new_dir)
                 && id != initial_id
             {
+                println!("Warning: Changed Devices");
                 break;
             }
 
             // check to see if we find the target file
-            if fs::metadata(new_dir.join(FILE_NAME)).is_ok() {
-                return new_dir.to_str().unwrap().to_owned();
+            if new_dir.join(FILE_NAME).exists() {
+                println!("Found todo!");
+                return new_dir.join(FILE_NAME);
             }
+            new_dir = match new_dir.parent() {
+                Some(p) => p,
+                None => {
+                    println!("Warning: No parent");
+                    break;
+                }
+            };
         }
     };
-    return FILE_NAME.to_string();
+    println!("Base case");
+    return default;
 }
 
-pub fn get_relative_to_todo(target_path: &std::path::Path) -> String {
+pub fn get_relative_to_todo(target_path: &Path, todo_path: &Path) -> String {
     // Resolve target to an absolute path
     let abs_target = target_path
         .canonicalize()
         .unwrap_or_else(|_| target_path.to_path_buf());
 
     // Resolve my_todo.json to an absolute path
-    let json_path = std::path::Path::new(&find_file())
+    let json_path = Path::new(&todo_path)
         .canonicalize()
-        .unwrap_or_else(|_| std::path::PathBuf::from(find_file()));
+        .unwrap_or_else(|_| PathBuf::from(todo_path));
 
-    let json_dir = json_path
-        .parent()
-        .unwrap_or_else(|| std::path::Path::new(""));
+    let json_dir = json_path.parent().unwrap_or_else(|| Path::new(""));
 
     // Strip the JSON directory from the target path
     match abs_target.strip_prefix(json_dir) {
@@ -80,21 +105,25 @@ pub fn get_relative_to_todo(target_path: &std::path::Path) -> String {
     }
 }
 
-pub fn get_tasks() -> Vec<Task> {
-    return match fs::read_to_string(find_file()) {
-        Ok(content) => serde_json::from_str(&content).unwrap(),
+pub fn get_tasks(path: &Path) -> Vec<Task> {
+    return match fs::read_to_string(path) {
+        Ok(content) => serde_json::from_str(&content).expect("Error reading JSON."),
         Err(_) => Vec::new(),
     };
 }
 
-pub fn save_tasks(tasks: Vec<Task>) {
-    if tasks.len() == 0 {
-        fs::remove_file(find_file()).unwrap_or_else(|_| {
-            eprintln!("Failed to delete task file: {}", find_file());
-        });
-    } else {
-        fs::write(find_file(), serde_json::to_string_pretty(&tasks).unwrap()).unwrap();
+pub fn save_tasks(tasks: Vec<Task>, path: &Path) {
+    if !path.exists()
+        && let Some(parent) = path.parent()
+    {
+        println!("Creating directories...");
+        let _ = fs::create_dir_all(parent);
     }
+    fs::write(
+        path,
+        serde_json::to_string_pretty(&tasks).expect("Error formatting JSON."),
+    )
+    .expect("Error writing to todo file.");
 }
 
 pub fn format_task(index: usize, task: &Task, show_files: bool) -> String {

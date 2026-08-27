@@ -1,6 +1,6 @@
 use crate::core::*;
 use std::fs;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write, stdin, stdout};
 use std::path::Path;
 
 struct ScannedTodo {
@@ -8,22 +8,25 @@ struct ScannedTodo {
     file_path: String,
 }
 
-fn scan_directory(dir: &Path, found: &mut Vec<ScannedTodo>) {
+fn scan_directory(dir: &Path, found: &mut Vec<ScannedTodo>, path: &Path) {
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
-            let path = entry.path();
+            let target_path = entry.path();
 
             // Skip common noise directories like .git, node_modules, target
-            if path.is_dir() {
-                let name = path.file_name().unwrap_or_default().to_string_lossy();
+            if target_path.is_dir() {
+                let name = target_path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy();
                 if name != ".git" && name != "target" && name != "node_modules" {
-                    scan_directory(&path, found);
+                    scan_directory(&target_path, found, path);
                 }
                 continue;
             }
 
             // Scan file contents line-by-line
-            if let Ok(file) = fs::File::open(&path) {
+            if let Ok(file) = fs::File::open(&target_path) {
                 let reader = BufReader::new(file);
                 for line in reader.lines().flatten() {
                     let trimmed = line.trim();
@@ -44,7 +47,7 @@ fn scan_directory(dir: &Path, found: &mut Vec<ScannedTodo>) {
                         if !clean_text.is_empty() {
                             found.push(ScannedTodo {
                                 text: clean_text.to_string(),
-                                file_path: get_relative_to_todo(&path),
+                                file_path: get_relative_to_todo(&target_path, path),
                             });
                         }
                     }
@@ -53,20 +56,21 @@ fn scan_directory(dir: &Path, found: &mut Vec<ScannedTodo>) {
         }
     }
 }
-fn scan_path(path: &Path, found: &mut Vec<ScannedTodo>) {
-    if !path.exists() {
+
+fn scan_path(target_path: &Path, found: &mut Vec<ScannedTodo>, path: &Path) {
+    if !target_path.exists() {
         println!(
             "Warning: Path '{}' does not exist. Skipping.",
-            path.display()
+            target_path.display()
         );
         return;
     }
 
-    if path.is_dir() {
-        scan_directory(path, found);
-    } else if path.is_file() {
+    if target_path.is_dir() {
+        scan_directory(target_path, found, path);
+    } else if target_path.is_file() {
         // Scan a single file directly
-        if let Ok(file) = fs::File::open(path) {
+        if let Ok(file) = fs::File::open(target_path) {
             let reader = BufReader::new(file);
             for line in reader.lines().flatten() {
                 let trimmed = line.trim();
@@ -86,7 +90,7 @@ fn scan_path(path: &Path, found: &mut Vec<ScannedTodo>) {
                     if !clean_text.is_empty() {
                         found.push(ScannedTodo {
                             text: clean_text.to_string(),
-                            file_path: get_relative_to_todo(&path),
+                            file_path: get_relative_to_todo(&target_path, path),
                         });
                     }
                 }
@@ -95,19 +99,19 @@ fn scan_path(path: &Path, found: &mut Vec<ScannedTodo>) {
     }
 }
 
-pub fn scan_tasks(args: Vec<String>) {
+pub fn scan_tasks(args: Vec<String>, path: &Path) {
     let mut found_todos = Vec::new();
 
     if args.len() > 2 {
         // User provided specific files or directories: `todo scan src/main.rs tests/`
         println!("Scanning specified target(s)...");
         for path_str in &args[2..] {
-            scan_path(Path::new(path_str), &mut found_todos);
+            scan_path(Path::new(path_str), &mut found_todos, path);
         }
     } else {
         // Default to current directory if no args given: `todo scan`
         println!("Scanning current project directory...");
-        scan_path(Path::new("."), &mut found_todos);
+        scan_path(Path::new("."), &mut found_todos, path);
     }
 
     if found_todos.is_empty() {
@@ -115,7 +119,7 @@ pub fn scan_tasks(args: Vec<String>) {
         return;
     }
 
-    let mut tasks = get_tasks();
+    let mut tasks = get_tasks(path);
     let mut added_count = 0;
     let mut ignored_files = Vec::new();
 
@@ -130,10 +134,10 @@ pub fn scan_tasks(args: Vec<String>) {
 
         println!("\nFound: \"{}\" in {}", item.text, item.file_path);
         print!("Add as task with attached file? (y/n or i to ignore file): ");
-        std::io::Write::flush(&mut std::io::stdout()).unwrap();
+        Write::flush(&mut stdout()).expect("Error flushing stdout.");
 
         let mut input = String::new();
-        std::io::stdin().read_line(&mut input).unwrap();
+        stdin().read_line(&mut input).expect("Error reading input.");
 
         if input.trim().eq_ignore_ascii_case("y") {
             tasks.push(Task {
@@ -149,7 +153,7 @@ pub fn scan_tasks(args: Vec<String>) {
     }
 
     if added_count > 0 {
-        save_tasks(tasks);
+        save_tasks(tasks, path);
         println!("\nSuccessfully imported {} new task(s)!", added_count);
     } else {
         println!("\nNo new tasks added.");

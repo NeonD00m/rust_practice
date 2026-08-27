@@ -3,7 +3,10 @@ pub mod scanner;
 use crate::core::*;
 use crate::scanner::scan_tasks;
 use rustyline::{DefaultEditor, error::ReadlineError};
-use std::{cmp, env, fs};
+use std::{
+    cmp, env, fs,
+    path::{Path, PathBuf},
+};
 
 fn match_shortcut(cmd: &str) -> &str {
     match cmd {
@@ -22,6 +25,7 @@ fn match_shortcut(cmd: &str) -> &str {
 
 fn help_desc(cmd: &str) -> &str {
     match cmd {
+        "init" => "creates an empty todo list",
         "new" => "creates a new task",
         "add" => "adds a tag to a task",
         "edit" => "edits a task's description",
@@ -43,6 +47,7 @@ fn help_desc(cmd: &str) -> &str {
 
 fn help_usage(cmd: &str) -> &str {
     match cmd {
+        "init" => "[FLAGS]",
         "new" => "<DESCRIPTION...>",
         "add" => "<TASK_ID> <TAGS...>",
         "edit" => "<TASK_ID> [FLAGS]",
@@ -131,38 +136,57 @@ fn do_help(args: &Vec<String>) {
             for (flag, flag_desc) in flags {
                 println!("\t{:24} {}", flag, flag_desc);
             }
-            println!();
+            println!(
+                "\t{:24} {}\n",
+                "-f, --file", "manually select which todo list file to use"
+            );
         }
     } else {
         // General top-level help
         println!("Usage: {} [COMMAND] [FLAGS]\n", CMD_NAME);
 
-        println!("Commands:");
-        println!("\tnew, n          {}", help_desc("new"));
-        println!("\tadd, a          {}", help_desc("add"));
-        println!("\tedit            {}", help_desc("edit"));
-        println!("\tattach          {}", help_desc("attach"));
-        println!("\tdetach         {}", help_desc("detach"));
-        println!("\tremove, r       {}", help_desc("remove"));
-        println!("\tprint, p        {}", help_desc("print"));
-        println!("\tlist, l         {}", help_desc("list"));
-        println!("\tsearch, s       {}", help_desc("search"));
-        println!("\tscan            {}", help_desc("scan"));
-        println!("\tcomplete, c     {}", help_desc("complete"));
-        println!("\tundo, u         {}", help_desc("undo"));
-        println!("\tdelete          {}", help_desc("delete"));
-        println!("\tclean           {}\n", help_desc("clean"));
-
-        println!("Flags:");
-        println!("\t-v, --version   prints version information");
         println!(
-            "\nUse \"{} help [COMMAND]\" for more information on a specific command.",
-            CMD_NAME
+            "Commands:\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}",
+            "init",
+            help_desc("init"),
+            "new, n",
+            help_desc("new"),
+            "add, a",
+            help_desc("add"),
+            "edit",
+            help_desc("edit"),
+            "attach",
+            help_desc("attach"),
+            "detach",
+            help_desc("detach"),
+            "remove, r",
+            help_desc("remove"),
+            "print, p",
+            help_desc("print"),
+            "list, l",
+            help_desc("list"),
+            "search, s",
+            help_desc("search"),
+            "scan",
+            help_desc("scan"),
+            "complete, c",
+            help_desc("complete"),
+            "undo, u",
+            help_desc("undo"),
+            "delete",
+            help_desc("delete"),
+            "clean",
+            help_desc("clean")
+        );
+
+        println!(
+            "\nFlags:\n\t{:24} {}\n\nUse \"{} help [COMMAND]\" for more information on a specific command.",
+            "-v, --version", "prints version information", CMD_NAME
         );
     }
 }
 
-fn new_task(args: Vec<String>) {
+fn new_task(args: Vec<String>, path: &Path) {
     if args.len() < 3 {
         println!(
             "No task description provided.\nTry '{} help new' for more details.",
@@ -171,7 +195,7 @@ fn new_task(args: Vec<String>) {
         return;
     }
 
-    let mut tasks = get_tasks();
+    let mut tasks = get_tasks(path);
 
     tasks.push(Task {
         text: args[2..].join(" "),
@@ -180,10 +204,10 @@ fn new_task(args: Vec<String>) {
         files: Vec::new(),
     });
 
-    save_tasks(tasks);
+    save_tasks(tasks, path);
 }
 
-fn add_task(args: Vec<String>) {
+fn add_task(args: Vec<String>, path: &Path) {
     if args.len() < 3 {
         println!(
             "No task number provided.\nTry '{} help new' for more details.",
@@ -191,8 +215,8 @@ fn add_task(args: Vec<String>) {
         );
         return;
     }
-    let task_number: usize = args[2].parse().unwrap();
-    let mut tasks = get_tasks();
+    let task_number: usize = args[2].parse().expect("Invalid task index.");
+    let mut tasks = get_tasks(path);
 
     let task = match tasks.get_mut(task_number) {
         Some(t) => t,
@@ -210,10 +234,10 @@ fn add_task(args: Vec<String>) {
         }
     }
 
-    save_tasks(tasks);
+    save_tasks(tasks, path);
 }
 
-fn edit_task(args: Vec<String>) {
+fn edit_task(args: Vec<String>, path: &Path) {
     if args.len() < 3 {
         println!(
             "No task number provided.\nTry '{} help edit' for more details.",
@@ -222,8 +246,8 @@ fn edit_task(args: Vec<String>) {
         return;
     }
     let overwrite = args.iter().any(|arg| arg == "--overwrite" || arg == "-o");
-    let task_number: usize = args[2].parse().unwrap();
-    let mut tasks = get_tasks();
+    let task_number: usize = args[2].parse().expect("Invalid task index.");
+    let mut tasks = get_tasks(path);
 
     let task = match tasks.get_mut(task_number) {
         Some(t) => t,
@@ -248,7 +272,7 @@ fn edit_task(args: Vec<String>) {
             .cloned()
             .collect::<Vec<String>>()
             .join(" ");
-        save_tasks(tasks);
+        save_tasks(tasks, path);
         return;
     }
 
@@ -268,7 +292,7 @@ fn edit_task(args: Vec<String>) {
                 eprintln!("Failed to add history entry: {}", e);
             }
             task.text = line;
-            save_tasks(tasks);
+            save_tasks(tasks, path);
         }
         Err(ReadlineError::Eof) => {
             println!("Input ended unexpectedly. Task not edited.");
@@ -282,7 +306,7 @@ fn edit_task(args: Vec<String>) {
     };
 }
 
-fn remove_task(args: Vec<String>) {
+fn remove_task(args: Vec<String>, path: &Path) {
     if args.len() < 3 {
         println!(
             "No task number provided.\nTry '{} help new' for more details.",
@@ -290,8 +314,8 @@ fn remove_task(args: Vec<String>) {
         );
         return;
     }
-    let task_number: usize = args[2].parse().unwrap();
-    let mut tasks = get_tasks();
+    let task_number: usize = args[2].parse().expect("Invalid task index.");
+    let mut tasks = get_tasks(path);
 
     let task = match tasks.get_mut(task_number) {
         Some(t) => t,
@@ -320,10 +344,10 @@ fn remove_task(args: Vec<String>) {
         }
     }
 
-    save_tasks(tasks);
+    save_tasks(tasks, path);
 }
 
-fn print_task(args: Vec<String>) {
+fn print_task(args: Vec<String>, path: &Path) {
     let show_all = args.iter().any(|arg| arg == "--all");
     let show_completion = show_all || args.iter().any(|arg| arg == "--completion" || arg == "-c");
     let show_number = show_all || args.iter().any(|arg| arg == "--number" || arg == "-n");
@@ -334,7 +358,7 @@ fn print_task(args: Vec<String>) {
         .filter(|arg| !arg.starts_with('-'))
         .filter_map(|s| s.parse::<usize>().ok())
         .collect();
-    let tasks = get_tasks();
+    let tasks = get_tasks(path);
     let visible_tasks: Vec<(usize, &Task)> = tasks
         .iter()
         .enumerate()
@@ -381,7 +405,7 @@ fn print_task(args: Vec<String>) {
     }
 }
 
-fn list_task(args: Vec<String>) {
+fn list_task(args: Vec<String>, path: &Path) {
     let hide_completed = args
         .iter()
         .any(|arg| arg == "--incomplete-only" || arg == "-i");
@@ -397,7 +421,7 @@ fn list_task(args: Vec<String>) {
         .unwrap_or(1)
         - 1;
     // Filter tasks FIRST while preserving original indices
-    let tasks = get_tasks();
+    let tasks = get_tasks(path);
     let visible_tasks: Vec<(usize, &Task)> = tasks
         .iter()
         .enumerate()
@@ -430,7 +454,7 @@ fn list_task(args: Vec<String>) {
     );
 }
 
-fn search_task(args: Vec<String>) {
+fn search_task(args: Vec<String>, path: &Path) {
     let search_terms: Vec<&String> = args[2..]
         .iter()
         .filter(|arg| !arg.starts_with('-'))
@@ -450,7 +474,7 @@ fn search_task(args: Vec<String>) {
         .any(|arg| arg == "--complete-only" || arg == "-c");
     let search_text = args.iter().any(|arg| arg == "--text-only" || arg == "-t");
 
-    let tasks = get_tasks();
+    let tasks = get_tasks(path);
     let visible_tasks: Vec<(usize, &Task)> = tasks
         .iter()
         .enumerate()
@@ -480,7 +504,7 @@ fn search_task(args: Vec<String>) {
     }
 }
 
-fn attach_files(args: Vec<String>) {
+fn attach_files(args: Vec<String>, path: &Path) {
     if args.len() < 4 {
         println!(
             "No task number provided.\nTry '{} help attach' for more details.",
@@ -495,7 +519,7 @@ fn attach_files(args: Vec<String>) {
             return;
         }
     };
-    let mut tasks = get_tasks();
+    let mut tasks = get_tasks(path);
     let task = match tasks.get_mut(task_number) {
         Some(t) => t,
         None => {
@@ -506,14 +530,14 @@ fn attach_files(args: Vec<String>) {
 
     let mut count = 0;
     for path_str in &args[3..] {
-        let path = std::path::Path::new(path_str);
-        if !path.exists() {
+        let file_path = Path::new(path_str);
+        if !file_path.exists() {
             println!("Warning: File '{}' does not exist. Skipping.", path_str);
             continue;
         }
 
         // Convert to stable relative path
-        let safe_path = get_relative_to_todo(path);
+        let safe_path = get_relative_to_todo(file_path, path);
 
         if !task.files.contains(&safe_path) {
             task.files.push(safe_path);
@@ -521,11 +545,11 @@ fn attach_files(args: Vec<String>) {
         }
     }
 
-    save_tasks(tasks);
+    save_tasks(tasks, path);
     println!("Attached {} file(s) to task #{}.", count, task_number);
 }
 
-fn detach_files(args: Vec<String>) {
+fn detach_files(args: Vec<String>, path: &Path) {
     if args.len() < 4 {
         println!(
             "No task number provided.\nTry '{} help attach' for more details.",
@@ -540,7 +564,7 @@ fn detach_files(args: Vec<String>) {
             return;
         }
     };
-    let mut tasks = get_tasks();
+    let mut tasks = get_tasks(path);
     let task = match tasks.get_mut(task_number) {
         Some(t) => t,
         None => {
@@ -551,14 +575,14 @@ fn detach_files(args: Vec<String>) {
 
     let mut count = 0;
     for path_str in &args[3..] {
-        let path = std::path::Path::new(path_str);
-        if !path.exists() {
+        let file_path = Path::new(path_str);
+        if !file_path.exists() {
             println!("Warning: File '{}' does not exist. Skipping.", path_str);
             continue;
         }
 
         // Convert to stable relative path
-        let safe_path = get_relative_to_todo(path);
+        let safe_path = get_relative_to_todo(file_path, path);
 
         if let Some(i) = task.files.iter().position(|f| f == &safe_path) {
             task.files.remove(i);
@@ -566,11 +590,11 @@ fn detach_files(args: Vec<String>) {
         }
     }
 
-    save_tasks(tasks);
+    save_tasks(tasks, path);
     println!("detached {} file(s) to task #{}.", count, task_number);
 }
 
-fn complete_task(args: Vec<String>, mark: bool) {
+fn complete_task(args: Vec<String>, path: &Path, mark: bool) {
     if args.len() < 3 {
         println!(
             "No task number provided.\nTry '{} help complete' for more details.",
@@ -579,13 +603,16 @@ fn complete_task(args: Vec<String>, mark: bool) {
         return;
     }
 
-    let mut tasks = get_tasks();
+    let mut tasks = get_tasks(path);
     let mut count = 0;
     for i in 2..args.len() {
-        let task_number: usize = match args.get(i).unwrap().parse() {
+        let task_number: usize = match args.get(i).expect("Error getting arg.").parse() {
             Ok(num) => num,
             Err(_) => {
-                println!("Invalid task index: {}", args.get(i).unwrap());
+                println!(
+                    "Invalid task index: {}",
+                    args.get(i).expect("Error getting arg.")
+                );
                 continue;
             }
         };
@@ -604,10 +631,10 @@ fn complete_task(args: Vec<String>, mark: bool) {
         if mark { "Completed" } else { "Uncompleted" },
         count
     );
-    save_tasks(tasks);
+    save_tasks(tasks, path);
 }
 
-fn delete_task(args: Vec<String>) {
+fn delete_task(args: Vec<String>, path: &Path) {
     if args.len() < 3 {
         println!(
             "No task number provided.\nTry '{} help delete' for more details.",
@@ -616,25 +643,31 @@ fn delete_task(args: Vec<String>) {
         return;
     }
 
-    let task_number: usize = args[2].parse().unwrap();
-    let mut tasks = get_tasks();
+    let task_number: usize = args[2].parse().expect("Invalid task index.");
+    let mut tasks = get_tasks(path);
     if tasks.get(task_number).is_none() {
         println!("Task #{} not found.", task_number);
         return;
     }
     tasks.remove(task_number);
-    save_tasks(tasks);
+    save_tasks(tasks, path);
 }
 
-fn clean_task() {
-    match fs::remove_file(find_file()) {
+fn clean_task(path: &Path) {
+    match fs::remove_file(path) {
         Ok(()) => println!("File deleted successfully."),
         Err(err) => println!("Failed to delete file, error: {}", err),
     };
 }
 
+fn value_flag(args: &[String], short_flag: &str, long_flag: &str) -> Option<(String, usize)> {
+    args.iter()
+        .position(|arg| arg == short_flag || arg == long_flag)
+        .and_then(|pos| args.get(pos + 1).cloned().and_then(|s| Some((s, pos))))
+}
+
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let mut args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
         println!("Welcome to Max's custom todo cli!");
@@ -643,22 +676,36 @@ fn main() {
         return;
     }
 
+    let todo_path_input = value_flag(&args, "-f", "--file");
+    let todo_path = if let Some((p, pos)) = todo_path_input {
+        // remove flag and path from args list
+        if pos + 1 < args.len() {
+            args.remove(pos);
+        }
+        args.remove(pos);
+
+        PathBuf::from(p.as_str())
+    } else {
+        find_file()
+    };
+
     //figure out whether user wants to
-    match match_shortcut(args[1].as_str()) {
-        "new" => new_task(args),
-        "add" => add_task(args),
-        "edit" => edit_task(args),
-        "attach" => attach_files(args),
-        "detach" => detach_files(args),
-        "remove" => remove_task(args),
-        "print" => print_task(args),
-        "list" => list_task(args),
-        "search" => search_task(args),
-        "scan" => scan_tasks(args),
-        "complete" => complete_task(args, true),
-        "undo" => complete_task(args, false),
-        "delete" => delete_task(args),
-        "clean" => clean_task(),
+    match match_shortcut(args.get(1).expect("Error getting command arg.").as_str()) {
+        "init" => save_tasks(Vec::new(), &todo_path),
+        "new" => new_task(args, &todo_path),
+        "add" => add_task(args, &todo_path),
+        "edit" => edit_task(args, &todo_path),
+        "attach" => attach_files(args, &todo_path),
+        "detach" => detach_files(args, &todo_path),
+        "remove" => remove_task(args, &todo_path),
+        "print" => print_task(args, &todo_path),
+        "list" => list_task(args, &todo_path),
+        "search" => search_task(args, &todo_path),
+        "scan" => scan_tasks(args, &todo_path),
+        "complete" => complete_task(args, &todo_path, true),
+        "undo" => complete_task(args, &todo_path, false),
+        "delete" => delete_task(args, &todo_path),
+        "clean" => clean_task(&todo_path),
         "--version" => println!("Version - {}", env!("CARGO_PKG_VERSION")),
         &_ => do_help(&args),
     }
