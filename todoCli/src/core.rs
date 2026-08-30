@@ -2,7 +2,8 @@ use file_id::{FileId, get_file_id};
 use serde::Deserialize;
 use serde::Serialize;
 use std::{
-    env, fs, io,
+    env, fs,
+    io::{self, IsTerminal, Read},
     path::{Path, PathBuf},
 };
 
@@ -20,6 +21,14 @@ pub const FILE_NAME: &str = "my_todo.json";
 pub const PAGE_LENGTH: usize = 10;
 pub const CHECK_MARK: char = '🗹';
 pub const UNCHECKED: char = '☐';
+
+fn path_to_file(path: &Path) -> PathBuf {
+    if path.is_dir() {
+        path.join(FILE_NAME)
+    } else {
+        path.to_path_buf()
+    }
+}
 
 fn get_volume_id(path: &Path) -> io::Result<u64> {
     let id = get_file_id(path)?;
@@ -89,7 +98,7 @@ pub fn get_relative_to_todo(target_path: &Path, todo_path: &Path) -> String {
         .unwrap_or_else(|_| target_path.to_path_buf());
 
     // Resolve my_todo.json to an absolute path
-    let json_path = Path::new(&todo_path)
+    let json_path = path_to_file(todo_path)
         .canonicalize()
         .unwrap_or_else(|_| PathBuf::from(todo_path));
 
@@ -103,6 +112,7 @@ pub fn get_relative_to_todo(target_path: &Path, todo_path: &Path) -> String {
 }
 
 pub fn get_tasks(path: &Path) -> Vec<Task> {
+    let path = path_to_file(path);
     return match fs::read_to_string(path) {
         Ok(content) => serde_json::from_str(&content).expect("Error reading JSON."),
         Err(_) => Vec::new(),
@@ -116,9 +126,24 @@ pub fn save_tasks(tasks: Vec<Task>, path: &Path) {
         println!("Creating directories...");
         let _ = fs::create_dir_all(parent);
     }
+    let path = path_to_file(path);
     fs::write(
         path,
         serde_json::to_string_pretty(&tasks).expect("Error formatting JSON."),
     )
     .expect("Error writing to todo file.");
+}
+
+pub fn get_piped() -> Option<String> {
+    let stdin = io::stdin();
+    if !stdin.is_terminal() {
+        let mut buffer = String::new();
+        if stdin.lock().read_to_string(&mut buffer).is_ok() {
+            // let line = buffer.lines().next().unwrap_or("").trim().to_string();
+            // if !line.is_empty() {
+            return Some(buffer);
+            // }
+        }
+    }
+    None
 }

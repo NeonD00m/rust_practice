@@ -134,16 +134,14 @@ fn do_help(args: &Vec<String>) {
         println!("\t{} {} {}\n", CMD_NAME, cmd, help_usage(cmd));
 
         let flags = help_flags(cmd);
-        if !flags.is_empty() {
-            println!("FLAGS:");
-            for (flag, flag_desc) in flags {
-                println!("\t{:24} {}", flag, flag_desc);
-            }
-            println!(
-                "\t{:24} {}\n",
-                "-f, --file", "manually select which todo list file to use"
-            );
+        println!("FLAGS:");
+        for (flag, flag_desc) in flags {
+            println!("\t{:24} {}", flag, flag_desc);
         }
+        println!(
+            "\t{:24} {}\n",
+            "-p, --path", "manually select which todo list file to use"
+        );
     } else {
         // General top-level help
         println!("Usage: {} [COMMAND] [FLAGS]\n", CMD_NAME);
@@ -205,7 +203,7 @@ fn main() {
         return;
     }
 
-    let todo_path_input = value_flag(&args, "-f", "--file");
+    let todo_path_input = value_flag(&args, "-p", "--path");
     let todo_path = if let Some((p, pos)) = todo_path_input {
         // remove flag and path from args list
         if pos + 1 < args.len() {

@@ -3,7 +3,8 @@ use rustyline::{DefaultEditor, error::ReadlineError};
 use std::{fs, path::Path};
 
 pub fn new_task(args: Vec<String>, path: &Path) {
-    if args.len() < 3 {
+    let pipe = get_piped();
+    if args.len() < 3 && pipe.is_none() {
         println!(
             "No task description provided.\nTry '{} help new' for more details.",
             CMD_NAME
@@ -11,16 +12,35 @@ pub fn new_task(args: Vec<String>, path: &Path) {
         return;
     }
 
+    let mut count = 0;
     let mut tasks = get_tasks(path);
-
-    tasks.push(Task {
-        text: args[2..].join(" "),
-        completed: false,
-        tags: Vec::new(),
-        files: Vec::new(),
-    });
+    if let Some(buffer) = pipe {
+        for line in buffer.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            tasks.push(Task {
+                text: trimmed.to_string(),
+                completed: false,
+                tags: Vec::new(),
+                files: Vec::new(),
+            });
+            count += 1;
+        }
+    } else {
+        tasks.push(Task {
+            text: args[2..].join(" "),
+            completed: false,
+            tags: Vec::new(),
+            files: Vec::new(),
+        });
+    }
 
     save_tasks(tasks, path);
+    if count > 0 {
+        println!("Added {} new task(s) from piped input.", count);
+    }
 }
 
 pub fn add_task(args: Vec<String>, path: &Path) {
@@ -54,7 +74,8 @@ pub fn add_task(args: Vec<String>, path: &Path) {
 }
 
 pub fn edit_task(args: Vec<String>, path: &Path) {
-    if args.len() < 3 {
+    let pipe = get_piped();
+    if args.len() < 3 && pipe.is_none() {
         println!(
             "No task number provided.\nTry '{} help edit' for more details.",
             CMD_NAME
@@ -72,6 +93,18 @@ pub fn edit_task(args: Vec<String>, path: &Path) {
             return;
         }
     };
+
+    // rewrite from piped input
+    if let Some(buffer) = pipe {
+        let new_text = buffer.lines().next().unwrap_or_default().trim();
+        if !new_text.is_empty() {
+            task.text = new_text.to_string();
+            save_tasks(tasks, path);
+        } else {
+            println!("Piped input is empty. Task not edited.");
+        }
+        return;
+    }
 
     // overwrite from command line input
     if overwrite {
