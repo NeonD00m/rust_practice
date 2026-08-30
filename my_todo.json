@@ -67,12 +67,6 @@
     "files": []
   },
   {
-    "text": "use 'todo print <task-number> | palmtree start' to add your todo task to the pomodoro timer UI!",
-    "completed": false,
-    "tags": [],
-    "files": []
-  },
-  {
     "text": "make -v not show help message",
     "completed": true,
     "tags": [],
@@ -121,7 +115,7 @@
     "files": []
   },
   {
-    "text": "mark a task complete with the task number: 'todo complete 16' (or mark uncompleted with 'todo undo')",
+    "text": "mark a task complete with the task number: 'todo complete 15' (or mark uncompleted with 'todo undo')",
     "completed": false,
     "tags": [
       "intro"
@@ -129,7 +123,7 @@
     "files": []
   },
   {
-    "text": "edit this task with 'todo edit 17'",
+    "text": "edit this task with 'todo edit 16'",
     "completed": false,
     "tags": [
       "intro"
@@ -137,7 +131,7 @@
     "files": []
   },
   {
-    "text": "attach files to tasks (like shown on 19) with `todo attach` or detach like my ex with `todo detach` (no hate)",
+    "text": "attach files to tasks (like shown on 18) with `todo attach` or detach like my ex with `todo detach` (no hate)",
     "completed": false,
     "tags": [
       "intro"
@@ -159,14 +153,6 @@
     "completed": false,
     "tags": [
       "intro"
-    ],
-    "files": []
-  },
-  {
-    "text": "taking in piped inputs for task creation/tagging/files",
-    "completed": false,
-    "tags": [
-      "0.9"
     ],
     "files": []
   },

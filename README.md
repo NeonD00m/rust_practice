@@ -22,7 +22,7 @@ palm trees and beaches are relaxing and I needed this at a high stress time, plu
 - contains different base settings for DeskTime or ultradian rhythm based timers
 - can be hooked up with `todo` by piping the printed task to `palmtree`:
 ```bash
-todo print 0 -c | palmtree start --wait
+todo print 0 --completion | palmtree start --wait
 ```
 
 ## introduce yourself to the tools (tutorial)
