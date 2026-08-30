@@ -3,7 +3,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::{
     env, fs,
-    io::{self, IsTerminal, Read},
+    io::{self, IsTerminal, Read, stdin},
     path::{Path, PathBuf},
 };
 
@@ -135,7 +135,7 @@ pub fn save_tasks(tasks: Vec<Task>, path: &Path) {
 }
 
 pub fn get_piped() -> Option<String> {
-    let stdin = io::stdin();
+    let stdin = stdin();
     if !stdin.is_terminal() {
         let mut buffer = String::new();
         if stdin.lock().read_to_string(&mut buffer).is_ok() {
