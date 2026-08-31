@@ -483,9 +483,9 @@ fn run_timer(
                 "◻"
             }
         )
-        .unwrap();
+        .expect("Error writing to stdout.");
 
-        stdout.flush().unwrap();
+        stdout.flush().expect("Error flushing stdout.");
 
         // Trigger interval bell cleanly AFTER the UI frame is fully drawn
         if add_bell && waiting && conf.bell {
