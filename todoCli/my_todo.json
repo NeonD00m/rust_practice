@@ -1,17 +1,19 @@
 [
   {
-    "text": "test task description here",
-    "completed": false,
-    "tags": [
-      "example"
-    ],
-    "files": [
-      "Cargo.toml"
-    ]
+    "text": "taking in piped inputs for task creation/editing ONLY (other stuff is bloat)",
+    "completed": true,
+    "tags": [],
+    "files": []
   },
   {
-    "text": "not fun task",
-    "completed": false,
+    "text": "general query flags and parameters like '--tag intro' or '--not code-todo' for various cmds",
+    "completed": true,
+    "tags": [],
+    "files": []
+  },
+  {
+    "text": "consolidate output commands and format function",
+    "completed": true,
     "tags": [],
     "files": []
   }

@@ -1,94 +1,11 @@
 [
   {
-    "text": "add edit command that gives raw text to user so they can retype",
-    "completed": true,
-    "tags": [],
-    "files": []
-  },
-  {
     "text": "tree and project structure tool that will list out files according to directories and can add lengths optionally",
     "completed": false,
     "tags": [],
     "files": [
       "README.md"
     ]
-  },
-  {
-    "text": "add argument to list that lets you only show incomplete",
-    "completed": true,
-    "tags": [
-      "ux",
-      "fire"
-    ],
-    "files": [
-      "my_todo.json",
-      "todoCli\\src\\main.rs"
-    ]
-  },
-  {
-    "text": "learn how to publish binary so I can install easier without having to do cp commands",
-    "completed": true,
-    "tags": [
-      "WAY LATER"
-    ],
-    "files": []
-  },
-  {
-    "text": "successfully rewritten task!",
-    "completed": true,
-    "tags": [
-      "fire"
-    ],
-    "files": [
-      "todoCli\\Cargo.lock",
-      "todoCli\\Cargo.toml"
-    ]
-  },
-  {
-    "text": "help_options(), help_full()",
-    "completed": true,
-    "tags": [
-      "code-todo"
-    ],
-    "files": [
-      "todoCli\\src\\main.rs"
-    ]
-  },
-  {
-    "text": "make pomodoro cli because I'm procrastinating on school work",
-    "completed": true,
-    "tags": [],
-    "files": []
-  },
-  {
-    "text": "laterally procrastinate on school work by only coding palmtree for 24 hours",
-    "completed": true,
-    "tags": [],
-    "files": []
-  },
-  {
-    "text": "make -v not show help message",
-    "completed": true,
-    "tags": [],
-    "files": []
-  },
-  {
-    "text": "show timer for pause duration that counts up to show how long you have paused for",
-    "completed": true,
-    "tags": [],
-    "files": []
-  },
-  {
-    "text": "fix possible bug where the same tips show up each time, shuffle them",
-    "completed": true,
-    "tags": [],
-    "files": []
-  },
-  {
-    "text": "add wait feature or option to toggle during timer",
-    "completed": true,
-    "tags": [],
-    "files": []
   },
   {
     "text": "create a new task with 'todo n hello world' (quotes not necessary because I was too lazy to type quotes when I first wrote todo)",
@@ -115,7 +32,7 @@
     "files": []
   },
   {
-    "text": "mark a task complete with the task number: 'todo complete 15' (or mark uncompleted with 'todo undo')",
+    "text": "mark a task complete with the task number: 'todo complete 4' (or mark uncompleted with 'todo undo')",
     "completed": false,
     "tags": [
       "intro"
@@ -123,7 +40,7 @@
     "files": []
   },
   {
-    "text": "edit this task with 'todo edit 16'",
+    "text": "edit this task with 'todo edit 5'",
     "completed": false,
     "tags": [
       "intro"
@@ -131,7 +48,7 @@
     "files": []
   },
   {
-    "text": "attach files to tasks (like shown on 18) with `todo attach` or detach like my ex with `todo detach` (no hate)",
+    "text": "attach files to tasks (like shown on 7) with `todo attach` or detach like my ex with `todo detach` (no hate)",
     "completed": false,
     "tags": [
       "intro"
@@ -153,22 +70,6 @@
     "completed": false,
     "tags": [
       "intro"
-    ],
-    "files": []
-  },
-  {
-    "text": "todo importing/exporting from md",
-    "completed": true,
-    "tags": [
-      "0.9"
-    ],
-    "files": []
-  },
-  {
-    "text": "allow using multiple todo files? and specifying between?",
-    "completed": true,
-    "tags": [
-      "0.9"
     ],
     "files": []
   }

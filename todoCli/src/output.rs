@@ -1,13 +1,12 @@
 use crate::core::*;
 use std::io::{IsTerminal, stdout};
-use std::option;
 use std::{cmp, path::Path};
 
 fn is_piping() -> bool {
     !stdout().is_terminal()
 }
 
-struct DisplayConfig {
+pub struct DisplayConfig {
     markdown: bool,
     show_completion: bool,
     show_number: bool,
@@ -15,7 +14,7 @@ struct DisplayConfig {
     show_tags: bool,
 }
 
-struct QueryConfig {
+pub struct QueryConfig {
     incomplete_only: bool,
     complete_only: bool,
     tags: Vec<String>,
@@ -51,7 +50,11 @@ impl QueryConfig {
     };
 }
 
-fn find_arg_and_remove(args: &mut Vec<String>, short_flag: &str, long_flag: &str) -> Option<usize> {
+pub fn find_arg_and_remove(
+    args: &mut Vec<String>,
+    short_flag: &str,
+    long_flag: &str,
+) -> Option<usize> {
     if let Some(pos) = args
         .iter()
         .position(|arg| arg == short_flag || arg == long_flag)
@@ -62,8 +65,26 @@ fn find_arg_and_remove(args: &mut Vec<String>, short_flag: &str, long_flag: &str
     None
 }
 
+pub fn extract_flag_values(
+    args: &mut Vec<String>,
+    short_flag: &str,
+    long_flag: &str,
+) -> Vec<String> {
+    let mut values = Vec::new();
+    while let Some(pos) = args
+        .iter()
+        .position(|arg| arg == short_flag || arg == long_flag)
+    {
+        args.remove(pos);
+        if pos < args.len() {
+            values.push(args.remove(pos));
+        }
+    }
+    values
+}
+
 pub fn config_display(args: &mut Vec<String>) -> DisplayConfig {
-    if args.iter().any(|arg| arg == "--all" || arg == "-a") {
+    if find_arg_and_remove(args, "-a", "--all").is_some() {
         return DisplayConfig::ALL;
     }
 
@@ -72,6 +93,10 @@ pub fn config_display(args: &mut Vec<String>) -> DisplayConfig {
     let show_number = find_arg_and_remove(args, "-n", "--number").is_some();
     let show_files = find_arg_and_remove(args, "-f", "--files").is_some();
     let show_tags = find_arg_and_remove(args, "-T", "--tags").is_some();
+
+    if !markdown && !show_completion && !show_number && !show_files && !show_tags {
+        return DisplayConfig::DEFAULT;
+    }
 
     DisplayConfig {
         markdown,
@@ -86,70 +111,51 @@ pub fn config_query(args: &mut Vec<String>) -> QueryConfig {
     QueryConfig {
         incomplete_only: find_arg_and_remove(args, "-i", "--incomplete-only").is_some(),
         complete_only: find_arg_and_remove(args, "-c", "--complete-only").is_some(),
-        tags: args
-            .iter()
-            .enumerate()
-            .filter_map(|(i, arg)| {
-                if arg == "-t" || arg == "--tags" {
-                    args.get(i + 1).cloned()
-                } else {
-                    None
-                }
-            })
-            .collect(),
-        not_tags: args
-            .iter()
-            .enumerate()
-            .filter_map(|(i, arg)| {
-                if arg == "--not" || arg == "--not" {
-                    args.get(i + 1).cloned()
-                } else {
-                    None
-                }
-            })
-            .collect(),
-        search_terms: args
-            .iter()
-            .enumerate()
-            .filter_map(|(i, arg)| {
-                if arg == "-s" || arg == "--search" {
-                    args.get(i + 1).cloned()
-                } else {
-                    None
-                }
-            })
-            .collect(),
+        tags: extract_flag_values(args, "-t", "--tag"),
+        not_tags: extract_flag_values(args, "--not", "--not"),
+        search_terms: extract_flag_values(args, "-s", "--search"),
     }
 }
 
-pub fn query_tasks(tasks: Vec<Task>, conf: QueryConfig) -> Vec<(usize, Task)> {
-    let mut tasks = tasks.into_iter().enumerate();
+pub fn query_tasks(
+    tasks: Vec<Task>,
+    conf: QueryConfig,
+    exceptions: Vec<usize>,
+) -> Vec<(usize, Task)> {
+    tasks
+        .into_iter()
+        .enumerate()
+        .filter(|(id, task)| {
+            if exceptions.contains(id) {
+                return true;
+            }
 
-    if conf.incomplete_only {
-        tasks = tasks.filter(|(_, task)| !task.completed);
-    }
+            if task.completed && conf.incomplete_only {
+                return false;
+            }
+            if !task.completed && conf.complete_only {
+                return false;
+            }
+            if !conf.search_terms.is_empty()
+                && !conf
+                    .search_terms
+                    .iter()
+                    .all(|term| task.text.contains(term))
+            {
+                return false;
+            }
+            if !conf.tags.is_empty() && !conf.tags.iter().all(|tag| task.tags.contains(tag)) {
+                return false;
+            }
+            if !conf.not_tags.is_empty()
+                && !conf.not_tags.iter().all(|tag| !task.tags.contains(tag))
+            {
+                return false;
+            }
 
-    if conf.complete_only {
-        tasks = tasks.filter(|(_, task)| task.completed);
-    }
-
-    if !conf.tags.is_empty() {
-        tasks = tasks.filter(|(_, task)| conf.tags.iter().all(|tag| task.tags.contains(tag)));
-    }
-
-    if !conf.not_tags.is_empty() {
-        tasks = tasks.filter(|(_, task)| conf.not_tags.iter().all(|tag| !task.tags.contains(tag)));
-    }
-
-    if !conf.search_terms.is_empty() {
-        tasks = tasks.filter(|(_, task)| {
-            conf.search_terms
-                .iter()
-                .all(|term| task.text.contains(term))
-        });
-    }
-
-    tasks.collect()
+            true
+        })
+        .collect()
 }
 
 pub fn format_task(id: usize, task: &Task, conf: &DisplayConfig) -> String {
@@ -168,7 +174,7 @@ pub fn format_task(id: usize, task: &Task, conf: &DisplayConfig) -> String {
     if conf.show_number {
         output.push('(');
         output.push_str(&id.to_string());
-        output.push(')');
+        output.push_str(") ");
     }
 
     if conf.show_tags {
@@ -208,7 +214,7 @@ pub fn list_task(mut args: Vec<String>, path: &Path) {
     let query = config_query(&mut args);
 
     if is_piping() || args.iter().any(|s| s == "--raw") {
-        for (original_index, task) in query_tasks(get_tasks(path), query) {
+        for (original_index, task) in query_tasks(get_tasks(path), query, Vec::new()) {
             println!("{}", format_task(original_index, &task, &display));
         }
         return;
@@ -224,7 +230,18 @@ pub fn list_task(mut args: Vec<String>, path: &Path) {
         })
         .unwrap_or_default();
 
-    let visible_tasks = query_tasks(get_tasks(path), query);
+    let exceptions: Vec<usize> = args
+        .iter()
+        .filter_map(|arg| match arg.parse::<usize>() {
+            Ok(num) => Some(num),
+            Err(e) => {
+                println!("Arg '{}' could not be parsed into task number: {}", arg, e);
+                None
+            }
+        })
+        .collect();
+
+    let visible_tasks = query_tasks(get_tasks(path), query, exceptions);
     let len = visible_tasks.len();
     if len < 1 {
         println!("No tasks found.");
@@ -248,54 +265,4 @@ pub fn list_task(mut args: Vec<String>, path: &Path) {
         CMD_NAME,
         page + 2
     );
-}
-
-pub fn search_task(args: Vec<String>, path: &Path) {
-    let search_terms: Vec<&String> = args[2..]
-        .iter()
-        .filter(|arg| !arg.starts_with('-'))
-        .collect();
-    if search_terms.len() < 1 {
-        return println!(
-            "No tags to search by provided.\nTry '{} help search' for more details.",
-            CMD_NAME
-        );
-    }
-    let show_files = args.iter().any(|arg| arg == "--files" || arg == "-f");
-    let hide_completed = args
-        .iter()
-        .any(|arg| arg == "--incomplete-only" || arg == "-i");
-    let hide_incompleted = args
-        .iter()
-        .any(|arg| arg == "--complete-only" || arg == "-c");
-    let search_text = args.iter().any(|arg| arg == "--text-only" || arg == "-t");
-
-    let tasks = get_tasks(path);
-    let visible_tasks: Vec<(usize, &Task)> = tasks
-        .iter()
-        .enumerate()
-        .filter(|(_, task)| {
-            !(hide_completed && task.completed) && !(hide_incompleted && !task.completed)
-        })
-        .collect();
-    for (i, v) in visible_tasks {
-        let mut print = true;
-        for tag in &search_terms {
-            if search_text {
-                if !v.text.contains(tag.as_str()) {
-                    print = false;
-                    break;
-                }
-            } else {
-                // check instead if v has every tag
-                if v.tags.iter().find(|t| t == tag).is_none() {
-                    print = false;
-                    break;
-                }
-            }
-        }
-        if print {
-            println!("{}", format_task(i, &v, show_files));
-        }
-    }
 }

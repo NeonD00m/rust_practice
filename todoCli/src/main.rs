@@ -13,9 +13,11 @@ fn match_shortcut(cmd: &str) -> &str {
         "n" => "new",
         "a" => "add",
         "r" => "remove",
-        "p" => "print",
+        "p" => "list",
+        "print" => "list",
         "l" => "list",
-        "s" => "search",
+        "s" => "list",
+        "search" => "list",
         "c" => "complete",
         "u" => "undo",
         "-v" => "--version",
@@ -71,33 +73,24 @@ fn help_usage(cmd: &str) -> &str {
 
 fn help_flags(cmd: &str) -> Vec<(&str, &str)> {
     match cmd {
-        "print" => vec![
-            ("-m, --markdown", "formats for Github markdown check lists"),
-            ("--all", "print all optional flag fields"),
-            ("-c, --completion", "print completion status"),
-            ("-n, --number", "print task numbers"),
-            ("-t, --tags", "print task tags"),
-            ("-f, --files", "print attached files"),
-        ],
+        "print" => vec![],
         "list" => vec![
-            ("-i, --incomplete-only", "show only incomplete tasks"),
-            ("-c, --complete-only", "show only completed tasks"),
+            (
+                "-s, --search",
+                "filter tasks that contain the search term in their description",
+            ),
+            ("-i, --incomplete-only", "filter only incomplete tasks"),
+            ("-c, --complete-only", "filter only completed tasks"),
             ("-f, --files", "display attached files underneath tasks"),
-        ],
-        "search" => vec![
+            ("-m, --markdown", "formats for Github markdown check lists"),
             (
-                "-i, --incomplete-only",
-                "search only within incomplete tasks",
+                "--all",
+                "selects all optional display flags (except markdown)",
             ),
-            ("-c, --complete-only", "search only within completed tasks"),
-            (
-                "-t, --text-only",
-                "search only for terms in the tasks' text contents, not tags",
-            ),
-            (
-                "-f, --files",
-                "display attached files underneath matched tasks",
-            ),
+            ("-c, --completion", "display completion status"),
+            ("-n, --number", "display task numbers"),
+            ("-t, --tags", "display task tags"),
+            ("-f, --files", "display attached files"),
         ],
         "edit" => vec![
             (
@@ -147,7 +140,7 @@ fn do_help(args: &Vec<String>) {
         println!("Usage: {} [COMMAND] [FLAGS]\n", CMD_NAME);
 
         println!(
-            "Commands:\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}",
+            "Commands:\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}",
             "init",
             help_desc("init"),
             "new, n",
@@ -162,12 +155,8 @@ fn do_help(args: &Vec<String>) {
             help_desc("detach"),
             "remove, r",
             help_desc("remove"),
-            "print, p",
-            help_desc("print"),
             "list, l",
             help_desc("list"),
-            "search, s",
-            help_desc("search"),
             "scan",
             help_desc("scan"),
             "complete, c",
@@ -225,9 +214,7 @@ fn main() {
         "attach" => attach_files(args, &todo_path),
         "detach" => detach_files(args, &todo_path),
         "remove" => remove_task(args, &todo_path),
-        "print" => print_task(args, &todo_path),
         "list" => list_task(args, &todo_path),
-        "search" => search_task(args, &todo_path),
         "scan" => scan_tasks(args, &todo_path),
         "import" => import_tasks(args, &todo_path),
         "complete" => complete_task(args, &todo_path, true),

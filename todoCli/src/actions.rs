@@ -1,6 +1,11 @@
 use crate::core::*;
+use crate::output::*;
 use rustyline::{DefaultEditor, error::ReadlineError};
-use std::{fs, path::Path};
+use std::{
+    fs,
+    io::{Write, stdin, stdout},
+    path::Path,
+};
 
 pub fn new_task(args: Vec<String>, path: &Path) {
     let pipe = get_piped();
@@ -326,23 +331,90 @@ pub fn complete_task(args: Vec<String>, path: &Path, mark: bool) {
     save_tasks(tasks, path);
 }
 
-pub fn delete_task(args: Vec<String>, path: &Path) {
+pub fn delete_task(mut args: Vec<String>, path: &Path) {
     if args.len() < 3 {
         println!(
-            "No task number provided.\nTry '{} help delete' for more details.",
+            "No task number or query provided.\nTry '{} help delete' for more details.",
             CMD_NAME
         );
         return;
     }
+    args.remove(0); // remove command name
+    args.remove(0); // remove subcommand name
 
-    let task_number: usize = args[2].parse().expect("Invalid task index.");
     let mut tasks = get_tasks(path);
-    if tasks.get(task_number).is_none() {
-        println!("Task #{} not found.", task_number);
-        return;
+    let mut to_delete: Vec<usize> = Vec::new();
+
+    // add tasks that have been queried for
+    if find_arg_and_remove(&mut args, "--query", "--query").is_some() {
+        let queried = query_tasks(get_tasks(path), config_query(&mut args), Vec::new());
+
+        let mut results = queried
+            .iter()
+            .map(|(index, _)| *index)
+            .collect::<Vec<usize>>();
+
+        if get_piped().is_none() {
+            loop {
+                print!(
+                    "Are you sure you want to delete {} queried tasks? (y/N/i to inspect): ",
+                    queried.len()
+                );
+                Write::flush(&mut stdout()).expect("Error flushing stdout.");
+
+                let mut input = String::new();
+                stdin().read_line(&mut input).expect("Error reading input.");
+
+                if input.trim().eq_ignore_ascii_case("y") {
+                    to_delete.append(&mut results);
+                    break;
+                } else if input.trim().eq_ignore_ascii_case("i") {
+                    println!();
+                    for (original_index, task) in &queried {
+                        println!(
+                            "{}",
+                            format_task(*original_index, &task, &DisplayConfig::DEFAULT)
+                        );
+                    }
+                    println!();
+                } else {
+                    println!("Deletion cancelled.");
+                    return;
+                }
+            }
+        } else {
+            to_delete.append(&mut results);
+            println!("Appending {} queried tasks to delete.", queried.len());
+        }
     }
-    tasks.remove(task_number);
+
+    // add loose task number args
+    to_delete.append(
+        &mut args
+            .iter()
+            .filter_map(|arg| match arg.parse::<usize>() {
+                Ok(num) => Some(num),
+                Err(e) => {
+                    println!("Arg '{}' could not be parsed into task number: {}", arg, e);
+                    None
+                }
+            })
+            .collect::<Vec<usize>>(),
+    );
+
+    // sort to_delete from highest to lowest value
+    to_delete.sort_by(|a, b| b.cmp(a));
+    let mut count = 0;
+    for task_number in to_delete {
+        if tasks.get(task_number).is_none() {
+            println!("Task #{} not found.", task_number);
+            continue;
+        }
+        tasks.remove(task_number);
+        count += 1;
+    }
     save_tasks(tasks, path);
+    println!("Deleted {} task(s).", count);
 }
 
 pub fn clean_task(path: &Path) {
