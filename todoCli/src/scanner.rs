@@ -167,7 +167,7 @@ pub fn import_tasks(args: Vec<String>, path: &Path) {
     let mut found_todos = Vec::new();
 
     for path_str in &args[2..] {
-        // check if file exists, scan line-by-line for "- [*]", and read until end of lin
+        // check if file exists, scan line-by-line for "- [*]", and read until end of line
         let p = Path::new(path_str);
         if !p.exists() {
             println!("Warning: Path '{}' does not exist. Skipping.", p.display());
@@ -188,7 +188,10 @@ pub fn import_tasks(args: Vec<String>, path: &Path) {
             if !trimmed.starts_with("- [") {
                 continue;
             }
-            let complete = trimmed.get(3..4).map(|s| s == "x").unwrap_or(false);
+            let complete = trimmed
+                .get(3..4)
+                .map(|s| s.eq_ignore_ascii_case("x"))
+                .unwrap_or(false);
             let text = match trimmed.splitn(2, "] ").nth(1).map(|s| s.trim().to_string()) {
                 Some(s) => s,
                 None => {

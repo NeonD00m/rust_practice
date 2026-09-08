@@ -48,6 +48,14 @@ impl QueryConfig {
         not_tags: Vec::new(),
         search_terms: Vec::new(),
     };
+
+    pub fn is_empty(&self) -> bool {
+        !self.incomplete_only
+            && !self.complete_only
+            && self.tags.is_empty()
+            && self.not_tags.is_empty()
+            && self.search_terms.is_empty()
+    }
 }
 
 pub fn find_arg_and_remove(
@@ -122,6 +130,13 @@ pub fn query_tasks(
     conf: QueryConfig,
     exceptions: Vec<usize>,
 ) -> Vec<(usize, Task)> {
+    if conf.is_empty() && !exceptions.is_empty() {
+        return tasks
+            .into_iter()
+            .enumerate()
+            .filter(|(id, _)| exceptions.contains(id))
+            .collect();
+    }
     tasks
         .into_iter()
         .enumerate()
@@ -220,8 +235,8 @@ pub fn list_task(mut args: Vec<String>, path: &Path) {
         return;
     }
 
-    let requested_page: usize = find_arg_and_remove(&mut args, "--page", "--page")
-        .and_then(|p| args.get(p))
+    let requested_page: usize = extract_flag_values(&mut args, "--page", "--page")
+        .pop()
         .and_then(|s| {
             Some(s.parse().unwrap_or_else(|_| {
                 println!("Failed to parse page argument.");

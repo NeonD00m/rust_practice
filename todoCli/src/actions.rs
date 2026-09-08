@@ -418,7 +418,7 @@ pub fn delete_task(mut args: Vec<String>, path: &Path) {
 }
 
 pub fn clean_task(path: &Path) {
-    match fs::remove_file(path) {
+    match fs::remove_file(path_to_file(path)) {
         Ok(()) => println!("File deleted successfully."),
         Err(err) => println!("Failed to delete file, error: {}", err),
     };

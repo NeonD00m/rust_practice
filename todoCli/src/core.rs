@@ -22,7 +22,7 @@ pub const PAGE_LENGTH: usize = 10;
 pub const CHECK_MARK: char = '🗹';
 pub const UNCHECKED: char = '☐';
 
-fn path_to_file(path: &Path) -> PathBuf {
+pub fn path_to_file(path: &Path) -> PathBuf {
     if path.is_dir() {
         path.join(FILE_NAME)
     } else {
@@ -98,9 +98,8 @@ pub fn get_relative_to_todo(target_path: &Path, todo_path: &Path) -> String {
         .unwrap_or_else(|_| target_path.to_path_buf());
 
     // Resolve my_todo.json to an absolute path
-    let json_path = path_to_file(todo_path)
-        .canonicalize()
-        .unwrap_or_else(|_| PathBuf::from(todo_path));
+    let real_path = path_to_file(todo_path);
+    let json_path = real_path.canonicalize().unwrap_or_else(|_| real_path);
 
     let json_dir = json_path.parent().unwrap_or_else(|| Path::new(""));
 
@@ -120,13 +119,11 @@ pub fn get_tasks(path: &Path) -> Vec<Task> {
 }
 
 pub fn save_tasks(tasks: Vec<Task>, path: &Path) {
-    if !path.exists()
-        && let Some(parent) = path.parent()
-    {
-        println!("Creating directories...");
-        let _ = fs::create_dir_all(parent);
-    }
     let path = path_to_file(path);
+    if let Some(parent) = path.parent() {
+        println!("Creating directories...");
+        fs::create_dir_all(parent).expect("Error creating todo directories.");
+    }
     fs::write(
         path,
         serde_json::to_string_pretty(&tasks).expect("Error formatting JSON."),
