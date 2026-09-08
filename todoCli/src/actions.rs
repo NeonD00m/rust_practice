@@ -69,9 +69,8 @@ pub fn add_task(args: Vec<String>, path: &Path) {
     let tags = &mut task.tags;
 
     for i in 3..args.len() {
-        match args.get(i) {
-            Some(tag) => tags.push(tag.to_string()),
-            None => (),
+        if let Some(tag) = args.get(i) {
+            tags.push(tag.to_string());
         }
     }
 
@@ -187,13 +186,10 @@ pub fn remove_task(args: Vec<String>, path: &Path) {
         };
 
         for i in 0..tags.len() {
-            match tags.get(i) {
-                Some(val) => {
-                    if tag == val {
-                        tags.swap_remove(i);
-                    }
-                }
-                None => (),
+            if let Some(val) = tags.get(i)
+                && tag == val
+            {
+                tags.swap_remove(i);
             }
         }
     }
@@ -373,7 +369,7 @@ pub fn delete_task(mut args: Vec<String>, path: &Path) {
                     for (original_index, task) in &queried {
                         println!(
                             "{}",
-                            format_task(*original_index, &task, &DisplayConfig::DEFAULT)
+                            format_task(*original_index, task, &DisplayConfig::DEFAULT)
                         );
                     }
                     println!();

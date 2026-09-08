@@ -88,7 +88,7 @@ pub fn find_file() -> PathBuf {
             };
         }
     };
-    return default;
+    default
 }
 
 pub fn get_relative_to_todo(target_path: &Path, todo_path: &Path) -> String {
@@ -99,7 +99,7 @@ pub fn get_relative_to_todo(target_path: &Path, todo_path: &Path) -> String {
 
     // Resolve my_todo.json to an absolute path
     let real_path = path_to_file(todo_path);
-    let json_path = real_path.canonicalize().unwrap_or_else(|_| real_path);
+    let json_path = real_path.canonicalize().unwrap_or(real_path);
 
     let json_dir = json_path.parent().unwrap_or_else(|| Path::new(""));
 
@@ -112,10 +112,10 @@ pub fn get_relative_to_todo(target_path: &Path, todo_path: &Path) -> String {
 
 pub fn get_tasks(path: &Path) -> Vec<Task> {
     let path = path_to_file(path);
-    return match fs::read_to_string(path) {
+    match fs::read_to_string(path) {
         Ok(content) => serde_json::from_str(&content).expect("Error reading JSON."),
         Err(_) => Vec::new(),
-    };
+    }
 }
 
 pub fn save_tasks(tasks: Vec<Task>, path: &Path) {

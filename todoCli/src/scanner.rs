@@ -29,7 +29,7 @@ fn scan_directory(dir: &Path, found: &mut Vec<ScannedTodo>, path: &Path) {
             // Scan file contents line-by-line
             if let Ok(file) = fs::File::open(&target_path) {
                 let reader = BufReader::new(file);
-                for line in reader.lines().flatten() {
+                for line in reader.lines().map_while(Result::ok) {
                     let trimmed = line.trim();
 
                     // Match common comment styles
@@ -37,10 +37,8 @@ fn scan_directory(dir: &Path, found: &mut Vec<ScannedTodo>, path: &Path) {
                         Some(&trimmed[idx + 8..])
                     } else if let Some(idx) = trimmed.find("# TODO:") {
                         Some(&trimmed[idx + 7..])
-                    } else if let Some(idx) = trimmed.find("-- TODO:") {
-                        Some(&trimmed[idx + 8..])
                     } else {
-                        None
+                        trimmed.find("-- TODO:").map(|idx| &trimmed[idx + 8..])
                     };
 
                     if let Some(content) = comment_content {
@@ -74,17 +72,15 @@ fn scan_path(target_path: &Path, found: &mut Vec<ScannedTodo>, path: &Path) {
         // Scan a single file directly
         if let Ok(file) = fs::File::open(target_path) {
             let reader = BufReader::new(file);
-            for line in reader.lines().flatten() {
+            for line in reader.lines().map_while(Result::ok) {
                 let trimmed = line.trim();
 
                 let comment_content = if let Some(idx) = trimmed.find("// TODO:") {
                     Some(&trimmed[idx + 8..])
                 } else if let Some(idx) = trimmed.find("# TODO:") {
                     Some(&trimmed[idx + 7..])
-                } else if let Some(idx) = trimmed.find("-- TODO:") {
-                    Some(&trimmed[idx + 8..])
                 } else {
-                    None
+                    trimmed.find("-- TODO:").map(|idx| &trimmed[idx + 8..])
                 };
 
                 if let Some(content) = comment_content {
@@ -92,7 +88,7 @@ fn scan_path(target_path: &Path, found: &mut Vec<ScannedTodo>, path: &Path) {
                     if !clean_text.is_empty() {
                         found.push(ScannedTodo {
                             text: clean_text.to_string(),
-                            file_path: get_relative_to_todo(&target_path, path),
+                            file_path: get_relative_to_todo(target_path, path),
                             complete: false,
                         });
                     }
@@ -183,7 +179,7 @@ pub fn import_tasks(args: Vec<String>, path: &Path) {
             }
         };
         let reader = BufReader::new(file);
-        for line in reader.lines().flatten() {
+        for line in reader.lines().map_while(Result::ok) {
             let trimmed = line.trim();
             if !trimmed.starts_with("- [") {
                 continue;
@@ -192,7 +188,7 @@ pub fn import_tasks(args: Vec<String>, path: &Path) {
                 .get(3..4)
                 .map(|s| s.eq_ignore_ascii_case("x"))
                 .unwrap_or(false);
-            let text = match trimmed.splitn(2, "] ").nth(1).map(|s| s.trim().to_string()) {
+            let text = match trimmed.split_once("] ").map(|s| s.1.trim().to_string()) {
                 Some(s) => s,
                 None => {
                     println!("Warning: Malformed task line: '{}'. Skipping.", trimmed);

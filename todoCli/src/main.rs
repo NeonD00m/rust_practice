@@ -108,7 +108,7 @@ fn help_flags(cmd: &str) -> Vec<(&str, &str)> {
     }
 }
 
-fn do_help(args: &Vec<String>) {
+fn do_help(args: &[String]) {
     if args.len() > 2 {
         // Command-specific help
         let cmd = match_shortcut(args[2].as_str());
@@ -134,8 +134,8 @@ fn do_help(args: &Vec<String>) {
             println!("\t{:24} {}", flag, flag_desc);
         }
         println!(
-            "\t{:24} {}\n",
-            "-p, --path", "manually select which todo list file to use"
+            "\t{:24} manually select which todo list file to use\n",
+            "-p, --path"
         );
     } else {
         // General top-level help
@@ -172,8 +172,8 @@ fn do_help(args: &Vec<String>) {
         );
 
         println!(
-            "\nFlags:\n\t{:24} {}\n\nUse \"{} help [COMMAND]\" for more information on a specific command.",
-            "-v, --version", "prints version information", CMD_NAME
+            "\nFlags:\n\t{:24} prints version information\n\nUse \"{} help [COMMAND]\" for more information on a specific command.",
+            "-v, --version", CMD_NAME
         );
     }
 }
@@ -181,7 +181,7 @@ fn do_help(args: &Vec<String>) {
 fn value_flag(args: &[String], short_flag: &str, long_flag: &str) -> Option<(String, usize)> {
     args.iter()
         .position(|arg| arg == short_flag || arg == long_flag)
-        .and_then(|pos| args.get(pos + 1).cloned().and_then(|s| Some((s, pos))))
+        .and_then(|pos| args.get(pos + 1).cloned().map(|s| (s, pos)))
 }
 
 fn main() {

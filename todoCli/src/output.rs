@@ -237,11 +237,11 @@ pub fn list_task(mut args: Vec<String>, path: &Path) {
 
     let requested_page: usize = extract_flag_values(&mut args, "--page", "--page")
         .pop()
-        .and_then(|s| {
-            Some(s.parse().unwrap_or_else(|_| {
+        .map(|s| {
+            s.parse().unwrap_or_else(|_| {
                 println!("Failed to parse page argument.");
                 0
-            }))
+            })
         })
         .unwrap_or_default();
 
@@ -262,7 +262,7 @@ pub fn list_task(mut args: Vec<String>, path: &Path) {
         println!("No tasks found.");
         return;
     }
-    let pages = (len + PAGE_LENGTH - 1) / PAGE_LENGTH;
+    let pages = len.div_ceil(PAGE_LENGTH);
     let page = cmp::min(requested_page, pages - 1);
     let start: usize = page * PAGE_LENGTH;
     let end = cmp::min(start + PAGE_LENGTH, len);
