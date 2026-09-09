@@ -59,7 +59,6 @@ pub fn find_file() -> PathBuf {
     let initial_id = match get_volume_id(&current_dir) {
         Ok(id) => id,
         Err(_) => {
-            println!("Warning: No Initial Volume Id");
             return default;
         } // Skip files where metadata permissions are blocked
     };
@@ -71,7 +70,6 @@ pub fn find_file() -> PathBuf {
             if let Ok(id) = get_volume_id(new_dir)
                 && id != initial_id
             {
-                println!("Warning: Changed Devices");
                 break;
             }
 
@@ -82,7 +80,6 @@ pub fn find_file() -> PathBuf {
             new_dir = match new_dir.parent() {
                 Some(p) => p,
                 None => {
-                    println!("Warning: No parent");
                     break;
                 }
             };
@@ -121,7 +118,6 @@ pub fn get_tasks(path: &Path) -> Vec<Task> {
 pub fn save_tasks(tasks: Vec<Task>, path: &Path) {
     let path = path_to_file(path);
     if let Some(parent) = path.parent() {
-        println!("Creating directories...");
         fs::create_dir_all(parent).expect("Error creating todo directories.");
     }
     fs::write(

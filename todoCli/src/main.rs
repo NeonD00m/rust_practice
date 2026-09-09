@@ -57,14 +57,12 @@ fn help_usage(cmd: &str) -> &str {
         "attach" => "<TASK_ID> <FILES...>",
         "detach" => "<TASK_ID> <FILES...>",
         "remove" => "<TASK_ID> <TAGS...>",
-        "print" => "<TASK_IDs...> [FLAGS]",
-        "list" => "[PAGE] [FLAGS]",
-        "search" => "<QUERY...> [FLAGS]",
+        "list" => "[TASK_IDs...] [FLAGS] [QUERY]",
         "scan" => "[PATHS...]",
         "import" => "[PATHS...]",
-        "complete" => "<TASK_IDs...>",
-        "undo" => "<TASK_IDs...>",
-        "delete" => "<TASK_ID>",
+        "complete" => "[TASK_IDs...] [QUERY]",
+        "undo" => "[TASK_IDs...] [QUERY]",
+        "delete" => "[TASK_IDs...] [FLAGS] [QUERY]",
         "clean" => "",
         "help" => "[COMMAND]",
         &_ => "",
@@ -73,17 +71,22 @@ fn help_usage(cmd: &str) -> &str {
 
 fn help_flags(cmd: &str) -> Vec<(&str, &str)> {
     match cmd {
-        "print" => vec![],
         "list" => vec![
+            ("--page", "displays the given page of tasks"),
             (
                 "-s, --search",
-                "filter tasks that contain the search term in their description",
+                "filter tasks that contain the search term in their description (query)",
             ),
-            ("-t, --tag", "filter tasks that have the given tag"),
-            ("--not", "filter tasks that do not have the given tag"),
-            ("-i, --incomplete-only", "filter only incomplete tasks"),
-            ("-c, --complete-only", "filter only completed tasks"),
-            ("-f, --files", "display attached files underneath tasks"),
+            ("-t, --tag", "filter tasks that have the given tag (query)"),
+            (
+                "--not",
+                "filter tasks that do not have the given tag (query)",
+            ),
+            (
+                "-i, --incomplete-only",
+                "filter only incomplete tasks (query)",
+            ),
+            ("-c, --complete-only", "filter only completed tasks (query)"),
             ("-m, --markdown", "formats for Github markdown check lists"),
             (
                 "--all",
@@ -104,6 +107,10 @@ fn help_flags(cmd: &str) -> Vec<(&str, &str)> {
                 "overwrite existing description with description from all non-flag command line arguments",
             ),
         ],
+        "delete" | "complete" | "undo" => vec![(
+            "-q, --query",
+            "select additional tasks with a query (see 'help list' for query flags)",
+        )],
         &_ => Vec::new(),
     }
 }
@@ -211,11 +218,11 @@ fn main() {
     match match_shortcut(args.get(1).expect("Error getting command arg.").as_str()) {
         "init" => save_tasks(Vec::new(), &todo_path),
         "new" => new_task(args, &todo_path),
-        "add" => add_task(args, &todo_path),
+        "add" => add_tags(args, &todo_path),
         "edit" => edit_task(args, &todo_path),
         "attach" => attach_files(args, &todo_path),
         "detach" => detach_files(args, &todo_path),
-        "remove" => remove_task(args, &todo_path),
+        "remove" => remove_tags(args, &todo_path),
         "list" => list_task(args, &todo_path),
         "scan" => scan_tasks(args, &todo_path),
         "import" => import_tasks(args, &todo_path),

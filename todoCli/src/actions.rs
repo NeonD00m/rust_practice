@@ -48,7 +48,7 @@ pub fn new_task(args: Vec<String>, path: &Path) {
     }
 }
 
-pub fn add_task(args: Vec<String>, path: &Path) {
+pub fn add_tags(args: Vec<String>, path: &Path) {
     if args.len() < 3 {
         println!(
             "No task number provided.\nTry '{} help new' for more details.",
@@ -159,7 +159,7 @@ pub fn edit_task(args: Vec<String>, path: &Path) {
     };
 }
 
-pub fn remove_task(args: Vec<String>, path: &Path) {
+pub fn remove_tags(args: Vec<String>, path: &Path) {
     if args.len() < 3 {
         println!(
             "No task number provided.\nTry '{} help new' for more details.",
@@ -185,13 +185,7 @@ pub fn remove_task(args: Vec<String>, path: &Path) {
             None => continue,
         };
 
-        for i in 0..tags.len() {
-            if let Some(val) = tags.get(i)
-                && tag == val
-            {
-                tags.swap_remove(i);
-            }
-        }
+        tags.retain(|t| t != tag);
     }
 
     save_tasks(tasks, path);
@@ -287,7 +281,7 @@ pub fn detach_files(args: Vec<String>, path: &Path) {
     println!("detached {} file(s) to task #{}.", count, task_number);
 }
 
-pub fn complete_task(args: Vec<String>, path: &Path, mark: bool) {
+pub fn complete_task(mut args: Vec<String>, path: &Path, mark: bool) {
     if args.len() < 3 {
         println!(
             "No task number provided.\nTry '{} help complete' for more details.",
@@ -295,20 +289,41 @@ pub fn complete_task(args: Vec<String>, path: &Path, mark: bool) {
         );
         return;
     }
+    args.remove(0); // remove command name
+    args.remove(0); // remove subcommand name
 
     let mut tasks = get_tasks(path);
+    let mut to_mark: Vec<usize> = Vec::new();
+
+    // add tasks that have been queried for
+    if find_arg_and_remove(&mut args, "-q", "--query").is_some() {
+        let queried = query_tasks(get_tasks(path), config_query(&mut args), Vec::new());
+
+        let mut results = queried
+            .iter()
+            .map(|(index, _)| *index)
+            .collect::<Vec<usize>>();
+
+        to_mark.append(&mut results);
+        println!("Appending {} queried tasks to mark.", queried.len());
+    }
+
+    // add loose task number args
+    to_mark.append(
+        &mut args
+            .iter()
+            .filter_map(|arg| match arg.parse::<usize>() {
+                Ok(num) => Some(num),
+                Err(e) => {
+                    println!("Arg '{}' could not be parsed into task number: {}", arg, e);
+                    None
+                }
+            })
+            .collect::<Vec<usize>>(),
+    );
+
     let mut count = 0;
-    for i in 2..args.len() {
-        let task_number: usize = match args.get(i).expect("Error getting arg.").parse() {
-            Ok(num) => num,
-            Err(_) => {
-                println!(
-                    "Invalid task index: {}",
-                    args.get(i).expect("Error getting arg.")
-                );
-                continue;
-            }
-        };
+    for task_number in to_mark {
         let task = match tasks.get_mut(task_number) {
             Some(t) => t,
             None => {
@@ -342,7 +357,7 @@ pub fn delete_task(mut args: Vec<String>, path: &Path) {
     let mut to_delete: Vec<usize> = Vec::new();
 
     // add tasks that have been queried for
-    if find_arg_and_remove(&mut args, "--query", "--query").is_some() {
+    if find_arg_and_remove(&mut args, "-q", "--query").is_some() {
         let queried = query_tasks(get_tasks(path), config_query(&mut args), Vec::new());
 
         let mut results = queried

@@ -240,10 +240,11 @@ pub fn list_task(mut args: Vec<String>, path: &Path) {
         .map(|s| {
             s.parse().unwrap_or_else(|_| {
                 println!("Failed to parse page argument.");
-                0
+                1
             })
         })
-        .unwrap_or_default();
+        .unwrap_or(1_usize)
+        .saturating_sub(1);
 
     let exceptions: Vec<usize> = args
         .iter()

@@ -29,7 +29,14 @@ fn scan_directory(dir: &Path, found: &mut Vec<ScannedTodo>, path: &Path) {
             // Scan file contents line-by-line
             if let Ok(file) = fs::File::open(&target_path) {
                 let reader = BufReader::new(file);
-                for line in reader.lines().map_while(Result::ok) {
+                for result in reader.lines() {
+                    let line = match result {
+                        Ok(l) => l,
+                        Err(e) => {
+                            eprintln!("Warning: read error in '{}': {}", target_path.display(), e);
+                            continue;
+                        }
+                    };
                     let trimmed = line.trim();
 
                     // Match common comment styles
@@ -72,7 +79,14 @@ fn scan_path(target_path: &Path, found: &mut Vec<ScannedTodo>, path: &Path) {
         // Scan a single file directly
         if let Ok(file) = fs::File::open(target_path) {
             let reader = BufReader::new(file);
-            for line in reader.lines().map_while(Result::ok) {
+            for result in reader.lines() {
+                let line = match result {
+                    Ok(l) => l,
+                    Err(e) => {
+                        eprintln!("Warning: read error in '{}': {}", target_path.display(), e);
+                        continue;
+                    }
+                };
                 let trimmed = line.trim();
 
                 let comment_content = if let Some(idx) = trimmed.find("// TODO:") {
@@ -179,7 +193,14 @@ pub fn import_tasks(args: Vec<String>, path: &Path) {
             }
         };
         let reader = BufReader::new(file);
-        for line in reader.lines().map_while(Result::ok) {
+        for result in reader.lines() {
+            let line = match result {
+                Ok(l) => l,
+                Err(e) => {
+                    eprintln!("Warning: read error in '{}': {}", p.display(), e);
+                    continue;
+                }
+            };
             let trimmed = line.trim();
             if !trimmed.starts_with("- [") {
                 continue;
