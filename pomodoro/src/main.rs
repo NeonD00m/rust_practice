@@ -100,7 +100,7 @@ impl Config {
         let contents = match fs::read_to_string(path.clone()) {
             Ok(c) => c,
             Err(_) => {
-                println!(
+                eprintln!(
                     "Error: Config file at {} could not be read.",
                     path.display()
                 );
@@ -111,7 +111,7 @@ impl Config {
         let conf: Config = match serde_json::from_str(&contents) {
             Ok(c) => c,
             Err(_) => {
-                println!(
+                eprintln!(
                     "Error: Config file could not be parsed. If modified, check for invalid syntax, else fix manually at {} or with `{} save`",
                     path.display(),
                     CMD_NAME
@@ -140,7 +140,7 @@ impl Config {
                     println!("Creating directories...");
                     let _ = fs::create_dir_all(parent);
                 } else {
-                    println!("Error: Failed to create all directories.");
+                    eprintln!("Error: Failed to create all directories.");
                     return false;
                 }
             }
@@ -148,10 +148,10 @@ impl Config {
                 println!("Writing to file...");
                 return fs::write(path, json).is_ok();
             } else {
-                println!("Error: Failed to serialize config.");
+                eprintln!("Error: Failed to serialize config.");
             }
         } else {
-            println!("Error: Can't save config file because path doesn't exist.");
+            eprintln!("Error: Can't save config file because path doesn't exist.");
         }
         false
     }
@@ -164,8 +164,8 @@ pub struct RawModeGuard;
 impl RawModeGuard {
     pub fn new() -> Result<Self, io::Error> {
         if std::io::stdin().is_terminal() {
-            let _ = enable_raw_mode();
-            let _ = execute!(io::stdout(), cursor::Hide);
+            enable_raw_mode()?;
+            execute!(io::stdout(), cursor::Hide)?;
         }
         Ok(Self) // return self to make sure value not dropped until desired
     }
@@ -296,11 +296,14 @@ fn number_flag(args: &[String], short_flag: &str, long_flag: &str, default: u64)
 fn trigger_alert(title: &str, body: &str, conf: &Config) {
     // 2. Desktop Notification
     if conf.notification {
-        let _ = Notification::new()
+        if let Err(e) = Notification::new()
             .summary(title)
             .body(body)
             .appname(CMD_NAME)
-            .show();
+            .show()
+        {
+            eprintln!("Error sending notification: {}", e);
+        }
     }
 }
 
@@ -344,7 +347,10 @@ fn run_timer(
 ) -> bool {
     let _guard = match RawModeGuard::new() {
         Ok(g) => g,
-        Err(_) => return false,
+        Err(e) => {
+            eprintln!("Error creating raw mode guard: {}", e);
+            return false;
+        }
     };
 
     // drain any leftover events because they'll make me angry!! >:(
