@@ -72,5 +72,11 @@
       "intro"
     ],
     "files": []
+  },
+  {
+    "text": "I need to plan the layout/interface structure of MCP protocol support/APIs in each package, spaghetti already has an example but maybe it's not perfect?",
+    "completed": false,
+    "tags": [],
+    "files": []
   }
 ]

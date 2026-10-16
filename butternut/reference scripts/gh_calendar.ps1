@@ -114,10 +114,10 @@ $esc = [char]27
 # 256-color ANSI codes supported across Windows Terminal and conhost
 $levelColors = @{
     "NONE"            = "  "
-    "FIRST_QUARTILE"  = "$esc[48;5;28m$esc[0m"  # Dark forest green
-    "SECOND_QUARTILE" = "$esc[48;5;34m$esc[0m"  # Medium green
-    "THIRD_QUARTILE"  = "$esc[48;5;40m$esc[0m"  # Bright green
-    "FOURTH_QUARTILE" = "$esc[48;5;46m$esc[0m"  # Neon green
+    "FIRST_QUARTILE"  = "$esc[48;5;28m  $esc[0m"  # Dark forest green
+    "SECOND_QUARTILE" = "$esc[48;5;34m  $esc[0m"  # Medium green
+    "THIRD_QUARTILE"  = "$esc[48;5;40m  $esc[0m"  # Bright green
+    "FOURTH_QUARTILE" = "$esc[48;5;46m  $esc[0m"  # Neon green
 }
 
 $dayLabels = @("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")

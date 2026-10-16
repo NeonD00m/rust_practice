@@ -16,5 +16,17 @@
     "completed": true,
     "tags": [],
     "files": []
+  },
+  {
+    "text": "--tag feature for quickly adding tags in todo new",
+    "completed": false,
+    "tags": [],
+    "files": []
+  },
+  {
+    "text": "verbose tag for new that tells you the id of your new task",
+    "completed": false,
+    "tags": [],
+    "files": []
   }
 ]
