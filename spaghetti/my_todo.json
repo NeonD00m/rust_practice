@@ -2,13 +2,33 @@
   {
     "text": "short names by default in dependency graph \\",
     "completed": false,
-    "tags": [],
+    "tags": [
+      "v0.2.0"
+    ],
     "files": []
   },
   {
     "text": "how easy is it to add a new language to support or connect new file extensions to pre-existing languages tracked by spaghetti?",
     "completed": false,
-    "tags": [],
+    "tags": [
+      "v0.2.0"
+    ],
+    "files": []
+  },
+  {
+    "text": "add .php, .html, .css, .hs, and other suggested common languages",
+    "completed": false,
+    "tags": [
+      "v0.2.0"
+    ],
+    "files": []
+  },
+  {
+    "text": "add a tag for personally defining file extensions to include in tree/searches: '--file md' UNLESS that's already --ext?",
+    "completed": false,
+    "tags": [
+      "v0.2.0"
+    ],
     "files": []
   }
 ]

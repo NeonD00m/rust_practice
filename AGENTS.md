@@ -3,7 +3,7 @@
 ## Project Overview
 `rust_practice` is a monorepo containing fast, zero-bloat command-line utilities written in Rust. The workspace is built around the UNIX philosophy: small, single-purpose terminal tools that run with zero latency and pipe into one another seamlessly.
 
-### Core Tools
+### Core Original Tools
 1. **`todo` (`todoCli/`)**: A lightweight task manager designed for fast keyboard entry.
    - Saves state to `my_todo.json`.
    - Supports quote-less task creation (`todo n buy milk`).

@@ -2,7 +2,7 @@
 
 Fast, zero-bloat codebase cartographer, dependency tree mapper, and architectural onboarding tool for the terminal.
 
-Part of the [`rust_practice`](../) lightweight CLI productivity suite alongside `todo` and `palmtree`.
+Part of the [`bake`](../) lightweight CLI productivity suite alongside `todo` and `palmtree`.
 
 ---
 

@@ -26,6 +26,22 @@
   {
     "text": "verbose tag for new that tells you the id of your new task",
     "completed": false,
+    "tags": [
+      "v0.9.0"
+    ],
+    "files": []
+  },
+  {
+    "text": "add --personal flag for personal device user TODO list accessible anywhere on the system",
+    "completed": false,
+    "tags": [
+      "v0.9.0"
+    ],
+    "files": []
+  },
+  {
+    "text": "make sure when adding tags that it doesn't add duplicates",
+    "completed": false,
     "tags": [],
     "files": []
   }

@@ -2,7 +2,9 @@
   {
     "text": "add a flag to show contributions from all users for a repository",
     "completed": false,
-    "tags": [],
+    "tags": [
+      "v0.2.0"
+    ],
     "files": []
   }
 ]

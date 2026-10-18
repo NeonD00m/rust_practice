@@ -25,6 +25,20 @@ palm trees and beaches are relaxing and I needed this at a high stress time, plu
 todo print 0 --completion | palmtree start --wait
 ```
 
+#### **spaghetti**
+because your (or someone else's) code is messy and you need to unravel it + pasta tastes pretty good
+
+- tree mapper and dependency graph visualizer for codebases
+- supports C/C++, Python, JavaScript/TypeScript, Lua/Luau, and Rust (more on the way as needed)
+- implements ______ warning diagnostics regarding: (not enough) commenting, dead code, circular imports, and "god files" with too many lines of code
+
+#### **butternut**
+Trader Joe's Butternut Squash Mac & Cheeseeeeeee, also this *squashes* the friction of seeing contribution graphs
+
+- uses `gh` cli logged in user to fetch personal contribution graph
+- also can display contribution graphs of local repositories (per user too)
+- pretty ANSI colors that don't conflict with terminal dark/light themes
+
 ## introduce yourself to the tools (tutorial)
 you gotta install cargo and Rust, you should probably do that with `rustup` if you haven't already
 
