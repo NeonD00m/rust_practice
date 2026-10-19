@@ -14,7 +14,11 @@ pub fn count_lines(content: &str, lang: Language) -> CodeMetrics {
         }
 
         match lang {
-            Language::C | Language::Cpp | Language::JavaScript | Language::TypeScript | Language::Rust => {
+            Language::C
+            | Language::Cpp
+            | Language::JavaScript
+            | Language::TypeScript
+            | Language::Rust => {
                 if in_block_comment {
                     metrics.comments += 1;
                     if trimmed.contains("*/") {
@@ -89,7 +93,7 @@ pub fn count_lines(content: &str, lang: Language) -> CodeMetrics {
 
                 metrics.sloc += 1;
             }
-            Language::Other => {
+            _ => {
                 metrics.sloc += 1;
             }
         }

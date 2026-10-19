@@ -7,7 +7,7 @@ use std::{
     path::Path,
 };
 
-pub fn new_task(args: Vec<String>, path: &Path) {
+pub fn new_task(mut args: Vec<String>, path: &Path) {
     let pipe = get_piped();
     if args.len() < 3 && pipe.is_none() {
         println!(
@@ -16,6 +16,21 @@ pub fn new_task(args: Vec<String>, path: &Path) {
         );
         return;
     }
+
+    let verbose = find_arg_and_remove(&mut args, "-v", "--verbose").is_some();
+    let tags = extract_flag_values(&mut args, "-t", "--tag");
+    let files = extract_flag_values(&mut args, "-a", "--attach")
+        .iter()
+        .filter_map(|p| {
+            let file_path = Path::new(p);
+            if !file_path.exists() {
+                println!("Warning: File '{}' does not exist. Skipping.", p);
+                None
+            } else {
+                Some(get_relative_to_todo(file_path, path))
+            }
+        })
+        .collect();
 
     let mut count = 0;
     let mut tasks = get_tasks(path);
@@ -37,9 +52,12 @@ pub fn new_task(args: Vec<String>, path: &Path) {
         tasks.push(Task {
             text: args[2..].join(" "),
             completed: false,
-            tags: Vec::new(),
-            files: Vec::new(),
+            tags,
+            files,
         });
+        if verbose {
+            println!("New Task Id: {}", tasks.len() - 1);
+        }
     }
 
     save_tasks(tasks, path);

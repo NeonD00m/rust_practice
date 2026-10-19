@@ -1,13 +1,5 @@
 [
   {
-    "text": "tree and project structure tool that will list out files according to directories and can add lengths optionally",
-    "completed": false,
-    "tags": [],
-    "files": [
-      "README.md"
-    ]
-  },
-  {
     "text": "create a new task with 'todo n hello world' (quotes not necessary because I was too lazy to type quotes when I first wrote todo)",
     "completed": false,
     "tags": [

@@ -4,6 +4,7 @@ use std::io::{BufRead, BufReader, Write, stdin, stdout};
 use std::path::Path;
 
 struct ScannedTodo {
+    line_number: Option<usize>,
     text: String,
     file_path: String,
     complete: bool,
@@ -52,6 +53,7 @@ fn scan_directory(dir: &Path, found: &mut Vec<ScannedTodo>, path: &Path) {
                         let clean_text = content.trim();
                         if !clean_text.is_empty() {
                             found.push(ScannedTodo {
+                                line_number: None,
                                 text: clean_text.to_string(),
                                 file_path: get_relative_to_todo(&target_path, path),
                                 complete: false,
@@ -101,6 +103,7 @@ fn scan_path(target_path: &Path, found: &mut Vec<ScannedTodo>, path: &Path) {
                     let clean_text = content.trim();
                     if !clean_text.is_empty() {
                         found.push(ScannedTodo {
+                            line_number: None,
                             text: clean_text.to_string(),
                             file_path: get_relative_to_todo(target_path, path),
                             complete: false,
@@ -154,7 +157,12 @@ pub fn scan_tasks(args: Vec<String>, path: &Path) {
 
         if input.trim().eq_ignore_ascii_case("y") {
             tasks.push(Task {
-                text: item.text,
+                text: item.text
+                    + item
+                        .line_number
+                        .map(|ln| format!(" (line {})", ln))
+                        .unwrap_or_default()
+                        .as_str(),
                 completed: false,
                 tags: vec!["code-todo".to_string()],
                 files: vec![item.file_path],
@@ -217,6 +225,7 @@ pub fn import_tasks(args: Vec<String>, path: &Path) {
                 }
             };
             found_todos.push(ScannedTodo {
+                line_number: None,
                 text,
                 file_path: get_relative_to_todo(p, path),
                 complete,

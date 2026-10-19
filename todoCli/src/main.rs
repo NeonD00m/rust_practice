@@ -51,7 +51,7 @@ fn help_desc(cmd: &str) -> &str {
 fn help_usage(cmd: &str) -> &str {
     match cmd {
         "init" => "[FLAGS]",
-        "new" => "<DESCRIPTION...>",
+        "new" => "<DESCRIPTION...> [FLAGS]",
         "add" => "<TASK_ID> <TAGS...>",
         "edit" => "<TASK_ID> [FLAGS]",
         "attach" => "<TASK_ID> <FILES...>",
@@ -141,8 +141,10 @@ fn do_help(args: &[String]) {
             println!("\t{:24} {}", flag, flag_desc);
         }
         println!(
-            "\t{:24} manually select which todo list file to use\n",
-            "-p, --path"
+            "\t{:24} manually select which todo list file to use\n\t{:24} uses the device user's personal todo list at {}\n",
+            "-p, --path",
+            "--personal",
+            "C:\\Users\\<username>" // TODO:
         );
     } else {
         // General top-level help
@@ -185,12 +187,6 @@ fn do_help(args: &[String]) {
     }
 }
 
-fn value_flag(args: &[String], short_flag: &str, long_flag: &str) -> Option<(String, usize)> {
-    args.iter()
-        .position(|arg| arg == short_flag || arg == long_flag)
-        .and_then(|pos| args.get(pos + 1).cloned().map(|s| (s, pos)))
-}
-
 fn main() {
     let mut args: Vec<String> = env::args().collect();
 
@@ -201,14 +197,18 @@ fn main() {
         return;
     }
 
-    let todo_path_input = value_flag(&args, "-p", "--path");
-    let todo_path = if let Some((p, pos)) = todo_path_input {
+    let use_personal = find_arg_and_remove(&mut args, "--personal", "--personal");
+    let todo_path_input = value_flag(&args, "-p", "--path").map(|(s, pos)| (s.clone(), pos));
+    if let Some((_, pos)) = todo_path_input {
         // remove flag and path from args list
         if pos + 1 < args.len() {
             args.remove(pos);
         }
         args.remove(pos);
-
+    }
+    let todo_path = if use_personal.is_some() {
+        personal_path().expect("Error getting personal path.")
+    } else if let Some((p, _)) = todo_path_input {
         PathBuf::from(p.as_str())
     } else {
         find_file()

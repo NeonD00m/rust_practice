@@ -19,13 +19,15 @@
   },
   {
     "text": "--tag feature for quickly adding tags in todo new",
-    "completed": false,
-    "tags": [],
+    "completed": true,
+    "tags": [
+      "v0.9.0"
+    ],
     "files": []
   },
   {
     "text": "verbose tag for new that tells you the id of your new task",
-    "completed": false,
+    "completed": true,
     "tags": [
       "v0.9.0"
     ],
@@ -33,7 +35,7 @@
   },
   {
     "text": "add --personal flag for personal device user TODO list accessible anywhere on the system",
-    "completed": false,
+    "completed": true,
     "tags": [
       "v0.9.0"
     ],
@@ -41,6 +43,14 @@
   },
   {
     "text": "make sure when adding tags that it doesn't add duplicates",
+    "completed": false,
+    "tags": [
+      "v0.9.0"
+    ],
+    "files": []
+  },
+  {
+    "text": "allow selecting multiple todo files to edit at once, for example adding a task to personal AND repository, or listing tasks with a particular tag based on multiple --path arguments. first instinct is to implement a data structure that can hold multiple todo file paths and replace the todo file path variable everywhere with that and reimplement core functions with that structure. Edit: nvm, `new` would need to push to every path and attaching files would somehow need to get relative path for every todo list, maybe scrap this?",
     "completed": false,
     "tags": [],
     "files": []

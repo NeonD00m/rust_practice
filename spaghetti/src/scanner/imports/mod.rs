@@ -4,8 +4,8 @@ pub mod lua;
 pub mod python;
 pub mod rust;
 
-use std::path::Path;
 use crate::core::types::{ImportEdge, Language};
+use std::path::Path;
 
 pub fn extract_imports(
     content: &str,
@@ -14,13 +14,17 @@ pub fn extract_imports(
     project_root: &Path,
 ) -> Vec<ImportEdge> {
     match lang {
-        Language::C | Language::Cpp => c_cpp::extract_c_cpp_imports(content, current_file, project_root),
+        Language::C | Language::Cpp => {
+            c_cpp::extract_c_cpp_imports(content, current_file, project_root)
+        }
         Language::Python => python::extract_python_imports(content, current_file, project_root),
         Language::JavaScript | Language::TypeScript => {
             js_ts::extract_js_ts_imports(content, current_file, project_root)
         }
-        Language::Lua | Language::Luau => lua::extract_lua_imports(content, current_file, project_root),
+        Language::Lua | Language::Luau => {
+            lua::extract_lua_imports(content, current_file, project_root)
+        }
         Language::Rust => rust::extract_rust_imports(content, current_file, project_root),
-        Language::Other => Vec::new(),
+        _ => Vec::new(),
     }
 }

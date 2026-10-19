@@ -22,6 +22,16 @@ pub const PAGE_LENGTH: usize = 10;
 pub const CHECK_MARK: char = '🗹';
 pub const UNCHECKED: char = '☐';
 
+pub fn value_flag(args: &[String], short_flag: &str, long_flag: &str) -> Option<(String, usize)> {
+    args.iter()
+        .position(|arg| arg == short_flag || arg == long_flag)
+        .and_then(|pos| args.get(pos + 1).cloned().map(|s| (s, pos)))
+}
+
+pub fn personal_path() -> Option<PathBuf> {
+    dirs::home_dir().map(|p| p.join("my_todo.json"))
+}
+
 pub fn path_to_file(path: &Path) -> PathBuf {
     if path.is_dir() {
         path.join(FILE_NAME)

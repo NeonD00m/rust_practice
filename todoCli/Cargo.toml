@@ -8,6 +8,7 @@ file_id = { package = "file-id", version = "0.2.3" }
 rustyline = "18.0.1"
 serde = { version = "1.0.210", features = ["derive"] }
 serde_json = "1.0.128"
+dirs = "6.0.0"
 
 [profile.release]
 opt-level = "z"

@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Language {
@@ -11,6 +11,10 @@ pub enum Language {
     Lua,
     Luau,
     Rust,
+    PHP,     // symbols not implemented
+    Haskell, // symbols not implemented
+    HTML,    // symbols not implemented
+    CSS,     // symbols not implemented
     Other,
 }
 
@@ -25,6 +29,10 @@ impl Language {
             Language::Lua => "Lua",
             Language::Luau => "Luau",
             Language::Rust => "Rust",
+            Language::PHP => "PHP",
+            Language::Haskell => "Haskell",
+            Language::HTML => "HTML",
+            Language::CSS => "CSS",
             Language::Other => "Other",
         }
     }
@@ -39,6 +47,10 @@ impl Language {
             "lua" => Some(Language::Lua),
             "luau" => Some(Language::Luau),
             "rs" => Some(Language::Rust),
+            "php" => Some(Language::PHP),
+            "hs" => Some(Language::Haskell),
+            "html" => Some(Language::HTML),
+            "css" => Some(Language::CSS),
             _ => None,
         }
     }
