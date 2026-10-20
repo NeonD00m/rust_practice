@@ -32,11 +32,14 @@ pub fn get_hash_color(key: &str) -> Color {
 #[allow(dead_code)]
 pub fn language_color(lang_name: &str) -> Color {
     match lang_name.to_ascii_lowercase().as_str() {
-        "rust" => Color::AnsiValue(214),       // Orange
-        "c" | "c++" | "cpp" => Color::AnsiValue(75), // Cyan
-        "python" => Color::AnsiValue(220),     // Yellow
-        "javascript" | "typescript" => Color::AnsiValue(33), // Blue
-        "lua" | "luau" => Color::AnsiValue(175), // Magenta
-        _ => Color::AnsiValue(72),             // Bluish green
+        "rust" => Color::AnsiValue(214),                     // Orange
+        "c" | "c++" | "cpp" | "go" => Color::AnsiValue(75),  // Cyan
+        "python" => Color::AnsiValue(220),                   // Yellow
+        "javascript" | "typescript" | "php" => Color::AnsiValue(33), // Blue
+        "lua" | "luau" | "haskell" | "c#" | "csharp" => Color::AnsiValue(175), // Magenta
+        "java" | "kotlin" | "ruby" => Color::AnsiValue(203), // Vermilion
+        "swift" => Color::AnsiValue(214),                    // Orange
+        "html" | "css" => Color::AnsiValue(72),              // Bluish green
+        _ => Color::AnsiValue(72),                           // Bluish green
     }
 }

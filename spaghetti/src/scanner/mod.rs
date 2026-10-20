@@ -97,12 +97,22 @@ fn scan_dir_recursive(
                 .unwrap_or("")
                 .to_ascii_lowercase();
 
-            // Language detection
-            let lang = Language::from_extension(&ext);
+            let is_custom = config.is_custom_ext(&ext);
+            let standard_lang = Language::from_extension(&ext);
+
+            let lang = if is_custom {
+                Some(standard_lang.unwrap_or(Language::Other))
+            } else {
+                standard_lang
+            };
+
             if let Some(lang) = lang {
-                if !config.is_language_enabled(lang) || !config.is_ext_enabled(&ext) {
-                    *ignored_count += 1;
-                    continue;
+                // If it's not explicitly registered as custom, verify language & extension filters
+                if !is_custom {
+                    if !config.is_language_enabled(lang) || !config.is_ext_enabled(&ext) {
+                        *ignored_count += 1;
+                        continue;
+                    }
                 }
 
                 // Read file content and extract metrics, symbols, and imports

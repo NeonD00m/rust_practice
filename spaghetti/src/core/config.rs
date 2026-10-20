@@ -8,6 +8,7 @@ pub struct Config {
     pub no_ignore: bool,
     pub languages: HashSet<Language>,
     pub extensions: HashSet<String>,
+    pub custom_extensions: HashSet<String>,
     pub max_depth: Option<usize>,
     pub color_distinct: bool,
     pub no_color: bool,
@@ -31,6 +32,7 @@ impl Default for Config {
             no_ignore: false,
             languages: HashSet::new(),
             extensions: HashSet::new(),
+            custom_extensions: HashSet::new(),
             max_depth: None,
             color_distinct: false,
             no_color: false,
@@ -63,5 +65,9 @@ impl Config {
         } else {
             self.extensions.contains(&ext.to_ascii_lowercase())
         }
+    }
+
+    pub fn is_custom_ext(&self, ext: &str) -> bool {
+        self.custom_extensions.contains(&ext.to_ascii_lowercase())
     }
 }

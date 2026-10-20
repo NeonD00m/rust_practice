@@ -1,34 +1,49 @@
 [
   {
-    "text": "short names by default in dependency graph \\",
-    "completed": false,
+    "text": "short names by default in dependency graph, Edit: short names are pretty inconvenient in the case of rust's 'mod.rs' structure, so maybe flip to using an explicit flag '--short'\"",
+    "completed": true,
     "tags": [
       "v0.2.0"
     ],
-    "files": []
+    "files": [
+      "src/main.rs",
+      "src/render/tree.rs"
+    ]
   },
   {
     "text": "how easy is it to add a new language to support or connect new file extensions to pre-existing languages tracked by spaghetti?",
-    "completed": false,
+    "completed": true,
     "tags": [
       "v0.2.0"
     ],
-    "files": []
+    "files": [
+      "ADDING_LANGUAGES.md"
+    ]
   },
   {
     "text": "add .php, .html, .css, .hs, and other suggested common languages",
-    "completed": false,
+    "completed": true,
     "tags": [
       "v0.2.0"
     ],
-    "files": []
+    "files": [
+      "src/core/types.rs",
+      "src/core/palette.rs",
+      "src/scanner/loc.rs",
+      "src/scanner/symbols.rs",
+      "src/scanner/imports/mod.rs"
+    ]
   },
   {
-    "text": "add a tag for personally defining file extensions to include in tree/searches: '--file md' UNLESS that's already --ext?",
-    "completed": false,
+    "text": "add a flag argument for personally defining unsupported file extensions to include in tree/searches",
+    "completed": true,
     "tags": [
       "v0.2.0"
     ],
-    "files": []
+    "files": [
+      "src/core/config.rs",
+      "src/scanner/mod.rs",
+      "src/main.rs"
+    ]
   }
 ]

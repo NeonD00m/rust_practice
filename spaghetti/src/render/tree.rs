@@ -1,9 +1,9 @@
-use std::collections::{BTreeMap, HashSet};
-use std::path::Path;
+use super::columns::{format_with_commas, ColumnFormatter};
 use crate::core::config::Config;
 use crate::core::types::FileNode;
 use crate::graph::{DependencyGraph, RootDetector};
-use super::columns::{format_with_commas, ColumnFormatter};
+use std::collections::{BTreeMap, HashSet};
+use std::path::Path;
 
 // --- Filesystem Tree ---
 
@@ -49,7 +49,11 @@ pub fn render_fs_tree(
 
     // Footer summary
     println!();
-    let file_label = if files.len() == 1 { "code file" } else { "code files" };
+    let file_label = if files.len() == 1 {
+        "code file"
+    } else {
+        "code files"
+    };
     if show_loc || show_symbols {
         println!(
             "Total: {} {} | {} SLOC | {} types defined",
@@ -149,6 +153,7 @@ pub fn render_dep_tree(
     graph: &DependencyGraph,
     show_loc: bool,
     show_symbols: bool,
+    concise: bool,
     config: &Config,
 ) {
     if graph.files.is_empty() {
@@ -197,6 +202,7 @@ pub fn render_dep_tree(
         &mut current_path,
         show_loc,
         show_symbols,
+        concise,
         config,
     );
 
@@ -219,6 +225,7 @@ pub fn render_dep_tree(
                 &mut current_path,
                 show_loc,
                 show_symbols,
+                concise,
                 config,
             );
         }
@@ -240,6 +247,7 @@ fn render_dep_children(
     current_path: &mut Vec<usize>,
     show_loc: bool,
     show_symbols: bool,
+    concise: bool,
     config: &Config,
 ) {
     let children = &graph.adj[u];
@@ -251,15 +259,21 @@ fn render_dep_children(
         let next_prefix = format!("{}{}", prefix, if is_last { "    " } else { "│   " });
 
         let child_file = &graph.files[v];
-        let file_path = child_file.rel_path.to_string_lossy().replace('\\', "/");
+        let file_path = (if !concise {
+            child_file.rel_path.to_string_lossy()
+        } else {
+            child_file
+                .rel_path
+                .file_name()
+                .expect("Error getting file name")
+                .to_string_lossy()
+        })
+        .replace('\\', "/");
         let display_branch = format!("{}{}{}", prefix, branch, file_path);
 
         // Cycle check: is v currently on the active stack?
         if current_path.contains(&v) {
-            let cycle_line = format!(
-                "{} (cycle ⟲) [WARNING: -Wcycle]",
-                display_branch
-            );
+            let cycle_line = format!("{} (cycle ⟲) [WARNING: -Wcycle]", display_branch);
             println!("{}", cycle_line);
             continue;
         }
@@ -301,6 +315,7 @@ fn render_dep_children(
             current_path,
             show_loc,
             show_symbols,
+            concise,
             config,
         );
 

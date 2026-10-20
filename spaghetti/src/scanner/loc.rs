@@ -18,7 +18,13 @@ pub fn count_lines(content: &str, lang: Language) -> CodeMetrics {
             | Language::Cpp
             | Language::JavaScript
             | Language::TypeScript
-            | Language::Rust => {
+            | Language::Rust
+            | Language::Go
+            | Language::Java
+            | Language::CSharp
+            | Language::Swift
+            | Language::Kotlin
+            | Language::CSS => {
                 if in_block_comment {
                     metrics.comments += 1;
                     if trimmed.contains("*/") {
@@ -28,6 +34,30 @@ pub fn count_lines(content: &str, lang: Language) -> CodeMetrics {
                 }
 
                 if trimmed.starts_with("//") {
+                    metrics.comments += 1;
+                    continue;
+                }
+
+                if trimmed.starts_with("/*") {
+                    metrics.comments += 1;
+                    if !trimmed.contains("*/") {
+                        in_block_comment = true;
+                    }
+                    continue;
+                }
+
+                metrics.sloc += 1;
+            }
+            Language::PHP => {
+                if in_block_comment {
+                    metrics.comments += 1;
+                    if trimmed.contains("*/") {
+                        in_block_comment = false;
+                    }
+                    continue;
+                }
+
+                if trimmed.starts_with("//") || trimmed.starts_with('#') {
                     metrics.comments += 1;
                     continue;
                 }
@@ -69,6 +99,28 @@ pub fn count_lines(content: &str, lang: Language) -> CodeMetrics {
 
                 metrics.sloc += 1;
             }
+            Language::Ruby => {
+                if in_block_comment {
+                    metrics.comments += 1;
+                    if trimmed.starts_with("=end") {
+                        in_block_comment = false;
+                    }
+                    continue;
+                }
+
+                if trimmed.starts_with('#') {
+                    metrics.comments += 1;
+                    continue;
+                }
+
+                if trimmed.starts_with("=begin") {
+                    metrics.comments += 1;
+                    in_block_comment = true;
+                    continue;
+                }
+
+                metrics.sloc += 1;
+            }
             Language::Lua | Language::Luau => {
                 if in_block_comment {
                     metrics.comments += 1;
@@ -88,6 +140,49 @@ pub fn count_lines(content: &str, lang: Language) -> CodeMetrics {
 
                 if trimmed.starts_with("--") {
                     metrics.comments += 1;
+                    continue;
+                }
+
+                metrics.sloc += 1;
+            }
+            Language::Haskell => {
+                if in_block_comment {
+                    metrics.comments += 1;
+                    if trimmed.contains("-}") {
+                        in_block_comment = false;
+                    }
+                    continue;
+                }
+
+                if trimmed.starts_with("{-") {
+                    metrics.comments += 1;
+                    if !trimmed.contains("-}") {
+                        in_block_comment = true;
+                    }
+                    continue;
+                }
+
+                if trimmed.starts_with("--") {
+                    metrics.comments += 1;
+                    continue;
+                }
+
+                metrics.sloc += 1;
+            }
+            Language::HTML => {
+                if in_block_comment {
+                    metrics.comments += 1;
+                    if trimmed.contains("-->") {
+                        in_block_comment = false;
+                    }
+                    continue;
+                }
+
+                if trimmed.starts_with("<!--") {
+                    metrics.comments += 1;
+                    if !trimmed.contains("-->") {
+                        in_block_comment = true;
+                    }
                     continue;
                 }
 

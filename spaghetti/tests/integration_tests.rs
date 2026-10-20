@@ -22,6 +22,27 @@ mod tests {
     }
 
     #[test]
+    fn test_loc_counter_new_languages() {
+        // Haskell
+        let hs_code = "{- block -}\n-- line\nmain = putStrLn \"hi\"";
+        let hs_metrics = count_lines(hs_code, Language::Haskell);
+        assert_eq!(hs_metrics.comments, 2);
+        assert_eq!(hs_metrics.sloc, 1);
+
+        // HTML
+        let html_code = "<!-- comment -->\n<div>Hello</div>";
+        let html_metrics = count_lines(html_code, Language::HTML);
+        assert_eq!(html_metrics.comments, 1);
+        assert_eq!(html_metrics.sloc, 1);
+
+        // PHP
+        let php_code = "<?php\n// comment\n# hash comment\n/* block */\necho 'hi';";
+        let php_metrics = count_lines(php_code, Language::PHP);
+        assert_eq!(php_metrics.comments, 3);
+        assert_eq!(php_metrics.sloc, 2);
+    }
+
+    #[test]
     fn test_symbol_extraction() {
         let rust_code = r#"
         pub struct MyEngine {
@@ -41,6 +62,49 @@ mod tests {
         assert_eq!(syms[2].kind, SymbolKind::Trait);
         assert_eq!(syms[3].name, "main");
         assert_eq!(syms[3].kind, SymbolKind::Function);
+    }
+
+    #[test]
+    fn test_symbol_extraction_new_languages() {
+        // Go
+        let go_code = "type Server struct {}\ntype Handler interface {}\nfunc main() {}";
+        let syms_go = extract_symbols(go_code, Language::Go);
+        assert_eq!(syms_go.len(), 3);
+        assert_eq!(syms_go[0].name, "Server");
+        assert_eq!(syms_go[0].kind, SymbolKind::Struct);
+        assert_eq!(syms_go[1].name, "Handler");
+        assert_eq!(syms_go[1].kind, SymbolKind::Interface);
+        assert_eq!(syms_go[2].name, "main");
+        assert_eq!(syms_go[2].kind, SymbolKind::Function);
+
+        // Haskell
+        let hs_code = "data Tree = Leaf | Node\ntype Name = String\nclass Printable a";
+        let syms_hs = extract_symbols(hs_code, Language::Haskell);
+        assert_eq!(syms_hs.len(), 3);
+        assert_eq!(syms_hs[0].name, "Tree");
+        assert_eq!(syms_hs[0].kind, SymbolKind::Struct);
+        assert_eq!(syms_hs[1].name, "Name");
+        assert_eq!(syms_hs[1].kind, SymbolKind::Interface);
+        assert_eq!(syms_hs[2].name, "Printable");
+        assert_eq!(syms_hs[2].kind, SymbolKind::Trait);
+    }
+
+    #[test]
+    fn test_custom_extensions() {
+        use spaghetti::core::config::Config;
+        let mut config = Config::default();
+        config.custom_extensions.insert("proto".to_string());
+        assert!(config.is_custom_ext("proto"));
+        assert!(config.is_custom_ext("PROTO"));
+        assert!(!config.is_custom_ext("graphql"));
+
+        assert_eq!(Language::from_extension("php"), Some(Language::PHP));
+        assert_eq!(Language::from_extension("hs"), Some(Language::Haskell));
+        assert_eq!(Language::from_extension("html"), Some(Language::HTML));
+        assert_eq!(Language::from_extension("css"), Some(Language::CSS));
+        assert_eq!(Language::from_extension("go"), Some(Language::Go));
+        assert_eq!(Language::from_extension("cs"), Some(Language::CSharp));
+        assert_eq!(Language::from_extension("proto"), None);
     }
 
     #[test]

@@ -11,10 +11,16 @@ pub enum Language {
     Lua,
     Luau,
     Rust,
-    PHP,     // symbols not implemented
-    Haskell, // symbols not implemented
-    HTML,    // symbols not implemented
-    CSS,     // symbols not implemented
+    PHP,
+    Haskell,
+    HTML,
+    CSS,
+    Go,
+    Java,
+    CSharp,
+    Ruby,
+    Swift,
+    Kotlin,
     Other,
 }
 
@@ -33,6 +39,12 @@ impl Language {
             Language::Haskell => "Haskell",
             Language::HTML => "HTML",
             Language::CSS => "CSS",
+            Language::Go => "Go",
+            Language::Java => "Java",
+            Language::CSharp => "C#",
+            Language::Ruby => "Ruby",
+            Language::Swift => "Swift",
+            Language::Kotlin => "Kotlin",
             Language::Other => "Other",
         }
     }
@@ -47,10 +59,16 @@ impl Language {
             "lua" => Some(Language::Lua),
             "luau" => Some(Language::Luau),
             "rs" => Some(Language::Rust),
-            "php" => Some(Language::PHP),
-            "hs" => Some(Language::Haskell),
-            "html" => Some(Language::HTML),
-            "css" => Some(Language::CSS),
+            "php" | "phtml" | "php3" | "php4" | "php5" | "php7" | "phps" => Some(Language::PHP),
+            "hs" | "lhs" => Some(Language::Haskell),
+            "html" | "htm" => Some(Language::HTML),
+            "css" | "scss" | "sass" | "less" => Some(Language::CSS),
+            "go" => Some(Language::Go),
+            "java" => Some(Language::Java),
+            "cs" => Some(Language::CSharp),
+            "rb" => Some(Language::Ruby),
+            "swift" => Some(Language::Swift),
+            "kt" | "kts" => Some(Language::Kotlin),
             _ => None,
         }
     }

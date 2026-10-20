@@ -28,29 +28,31 @@ COMMANDS:
     help, -h    Print this help message
 
 GLOBAL FLAGS:
-    --dep               Toggle logical import dependency graph mode in 'tree'
-    --loc               Display physical SLOC in aligned column
-    --outline, --symbols Display extracted structs/classes/traits/interfaces
-    --flat              Flatten 'loc' ranking into global table
-    --limit <N>         Limit number of files printed in 'loc'
-    --no-ignore         Scan everything ignoring .gitignore rules
-    -l, --lang <LANG>   Filter by language (c, cpp, py, js, ts, lua, luau, rs)
-    -e, --ext <EXT>     Filter by extension (e.g. -e ts,tsx)
-    -d, --depth <N>     Maximum recursion depth
-    --color-distinct    Enable colorblind-safe distinct palette
-    --raw               Emit unformatted, pipeable lines (for todo, palmtree)
-    --json              Emit structured JSON (for MCP tools)
-    --no-color          Disable ANSI colors
+    --dep                   Toggle logical import dependency graph mode in 'tree'
+    --short                 Compact filenames in dependency tree (default: full relative paths)
+    --loc                   Display physical SLOC in aligned column
+    --outline, --symbols    Display extracted structs/classes/traits/interfaces
+    --flat                  Flatten 'loc' ranking into global table
+    --limit <N>             Limit number of files printed in 'loc'
+    --no-ignore             Scan everything ignoring .gitignore rules
+    -l, --lang <LANG>       Filter by language (c, cpp, py, js, ts, lua, luau, rs, go, java, cs, rb, swift, kt, php, hs, html, css)
+    -e, --ext <EXT>         Filter by extension (e.g. -e ts,tsx)
+    --include <EXT>         Include custom/unsupported file extensions (e.g. --include proto,zig)
+    -d, --depth <N>         Maximum recursion depth
+    --color-distinct        Enable colorblind-safe distinct palette
+    --raw                   Emit unformatted, pipeable lines (for todo, palmtree)
+    --json                  Emit structured JSON (for MCP tools)
+    --no-color              Disable ANSI colors
 
 DIAGNOSTIC FLAGS:
-    -Wall               Enable all warnings (-Worphan, -Wcycle, -Wgod, -Wdoc)
-    -Werror             Treat warnings as errors
+    -Wall                   Enable all warnings (-Worphan, -Wcycle, -Wgod, -Wdoc)
+    -Werror                 Treat warnings as errors
     -Worphan / -Wno-orphan
     -Wcycle / -Wno-cycle
     -Wgod / -Wno-god
     -Wdoc / -Wno-doc
-    --god-loc <N>       God-file SLOC threshold (default: 1000)
-    --doc-ratio <N>     Doc comment ratio threshold in % (default: 5)
+    --god-loc <N>           God-file SLOC threshold (default: 1000)
+    --doc-ratio <N>         Doc comment ratio threshold in % (default: 5)
 "#
     );
 }
@@ -68,6 +70,7 @@ fn main() {
     let mut show_loc = false;
     let mut show_symbols = false;
     let mut flat = false;
+    let mut concise = false;
     let mut limit = None;
 
     let cmd;
@@ -84,7 +87,17 @@ fn main() {
         other => {
             cmd = "tree".to_string();
             if other.starts_with('-') {
-                parse_flag(other, &mut iter, &mut config, &mut show_dep, &mut show_loc, &mut show_symbols, &mut flat, &mut limit);
+                parse_flag(
+                    other,
+                    &mut iter,
+                    &mut config,
+                    &mut show_dep,
+                    &mut show_loc,
+                    &mut show_symbols,
+                    &mut flat,
+                    &mut concise,
+                    &mut limit,
+                );
             } else {
                 positional_path = Some(PathBuf::from(other));
             }
@@ -93,7 +106,17 @@ fn main() {
 
     while let Some(arg) = iter.next() {
         if arg.starts_with('-') {
-            parse_flag(&arg, &mut iter, &mut config, &mut show_dep, &mut show_loc, &mut show_symbols, &mut flat, &mut limit);
+            parse_flag(
+                &arg,
+                &mut iter,
+                &mut config,
+                &mut show_dep,
+                &mut show_loc,
+                &mut show_symbols,
+                &mut flat,
+                &mut concise,
+                &mut limit,
+            );
         } else if positional_path.is_none() {
             positional_path = Some(PathBuf::from(arg));
         }
@@ -152,7 +175,7 @@ fn main() {
         "tree" => {
             if show_dep {
                 let g = graph.as_ref().unwrap();
-                render::render_dep_tree(g, show_loc, show_symbols, &config);
+                render::render_dep_tree(g, show_loc, show_symbols, concise, &config);
             } else {
                 render::render_fs_tree(
                     &scan_result.files,
@@ -190,12 +213,14 @@ fn parse_flag<I>(
     show_loc: &mut bool,
     show_symbols: &mut bool,
     flat: &mut bool,
+    concise: &mut bool,
     limit: &mut Option<usize>,
 ) where
     I: Iterator<Item = String>,
 {
     match flag {
         "--dep" => *show_dep = true,
+        "--short" | "--concise" => *concise = true,
         "--loc" => *show_loc = true,
         "--outline" | "--symbols" => *show_symbols = true,
         "--flat" => *flat = true,
@@ -213,14 +238,60 @@ fn parse_flag<I>(
             if let Some(val) = iter.next() {
                 for lang_str in val.split(',') {
                     match lang_str.trim().to_ascii_lowercase().as_str() {
-                        "c" => { config.languages.insert(Language::C); }
-                        "cpp" | "c++" => { config.languages.insert(Language::Cpp); }
-                        "py" | "python" => { config.languages.insert(Language::Python); }
-                        "js" | "javascript" => { config.languages.insert(Language::JavaScript); }
-                        "ts" | "typescript" => { config.languages.insert(Language::TypeScript); }
-                        "lua" => { config.languages.insert(Language::Lua); }
-                        "luau" => { config.languages.insert(Language::Luau); }
-                        "rs" | "rust" => { config.languages.insert(Language::Rust); }
+                        "c" => {
+                            config.languages.insert(Language::C);
+                        }
+                        "cpp" | "c++" => {
+                            config.languages.insert(Language::Cpp);
+                        }
+                        "py" | "python" => {
+                            config.languages.insert(Language::Python);
+                        }
+                        "js" | "javascript" => {
+                            config.languages.insert(Language::JavaScript);
+                        }
+                        "ts" | "typescript" => {
+                            config.languages.insert(Language::TypeScript);
+                        }
+                        "lua" => {
+                            config.languages.insert(Language::Lua);
+                        }
+                        "luau" => {
+                            config.languages.insert(Language::Luau);
+                        }
+                        "rs" | "rust" => {
+                            config.languages.insert(Language::Rust);
+                        }
+                        "go" | "golang" => {
+                            config.languages.insert(Language::Go);
+                        }
+                        "java" => {
+                            config.languages.insert(Language::Java);
+                        }
+                        "cs" | "c#" | "csharp" => {
+                            config.languages.insert(Language::CSharp);
+                        }
+                        "rb" | "ruby" => {
+                            config.languages.insert(Language::Ruby);
+                        }
+                        "swift" => {
+                            config.languages.insert(Language::Swift);
+                        }
+                        "kt" | "kotlin" => {
+                            config.languages.insert(Language::Kotlin);
+                        }
+                        "php" => {
+                            config.languages.insert(Language::PHP);
+                        }
+                        "hs" | "haskell" => {
+                            config.languages.insert(Language::Haskell);
+                        }
+                        "html" | "htm" => {
+                            config.languages.insert(Language::HTML);
+                        }
+                        "css" | "scss" | "sass" | "less" => {
+                            config.languages.insert(Language::CSS);
+                        }
                         _ => {}
                     }
                 }
@@ -229,7 +300,19 @@ fn parse_flag<I>(
         "-e" | "--ext" => {
             if let Some(val) = iter.next() {
                 for ext in val.split(',') {
-                    config.extensions.insert(ext.trim().to_ascii_lowercase());
+                    config
+                        .extensions
+                        .insert(ext.trim().trim_start_matches('.').to_ascii_lowercase());
+                }
+            }
+        }
+        "--include" => {
+            if let Some(val) = iter.next() {
+                for ext in val.split(',') {
+                    let clean = ext.trim().trim_start_matches('.').to_ascii_lowercase();
+                    if !clean.is_empty() {
+                        config.custom_extensions.insert(clean);
+                    }
                 }
             }
         }
