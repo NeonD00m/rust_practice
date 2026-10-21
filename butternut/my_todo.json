@@ -1,26 +1,32 @@
 [
   {
     "text": "add arguments to show contributions from all users or just a specified user for a repository",
-    "completed": false,
+    "completed": true,
     "tags": [
       "v0.2.0"
     ],
-    "files": []
+    "files": [
+      "src/main.rs"
+    ]
   },
   {
     "text": "display streak and explicitly say today's contributions (or maybe display today's contributions as simply a colored fire emoji to signify the streak is active or a discolored fire emoji to show the streak has not been kept alive today?)",
-    "completed": false,
+    "completed": true,
     "tags": [
       "v0.2.0"
     ],
-    "files": []
+    "files": [
+      "src/main.rs"
+    ]
   },
   {
     "text": "explore making a sideways/vertical scrolling feature with arrow keys if console is too small so that the graph doesn't overflow onto next line? how difficult? would it be easy without adding dependencies or possible with current dependencies?",
-    "completed": false,
+    "completed": true,
     "tags": [
       "v0.2.0"
     ],
-    "files": []
+    "files": [
+      "src/main.rs"
+    ]
   }
 ]
