@@ -21,7 +21,7 @@ fn scan_directory(dir: &Path, found: &mut Vec<ScannedTodo>, path: &Path) {
                     .file_name()
                     .unwrap_or_default()
                     .to_string_lossy();
-                if name != ".git" && name != "target" && name != "node_modules" {
+                if !name.starts_with('.') && name != "target" && name != "node_modules" && name != "vendor" {
                     scan_directory(&target_path, found, path);
                 }
                 continue;
@@ -115,19 +115,25 @@ fn scan_path(target_path: &Path, found: &mut Vec<ScannedTodo>, path: &Path) {
     }
 }
 
-pub fn scan_tasks(args: Vec<String>, path: &Path) {
+pub fn scan_tasks(args: Vec<String>, targets: &[TodoTarget]) {
+    if targets.is_empty() {
+        println!("No todo files found.");
+        return;
+    }
+
     let mut found_todos = Vec::new();
+    let primary_path = &targets[0].path;
 
     if args.len() > 2 {
         // User provided specific files or directories: `todo scan src/main.rs tests/`
         println!("Scanning specified target(s)...");
         for path_str in &args[2..] {
-            scan_path(Path::new(path_str), &mut found_todos, path);
+            scan_path(Path::new(path_str), &mut found_todos, primary_path);
         }
     } else {
         // Default to current directory if no args given: `todo scan`
         println!("Scanning current project directory...");
-        scan_path(Path::new("."), &mut found_todos, path);
+        scan_path(Path::new("."), &mut found_todos, primary_path);
     }
 
     if found_todos.is_empty() {
@@ -135,7 +141,7 @@ pub fn scan_tasks(args: Vec<String>, path: &Path) {
         return;
     }
 
-    let mut tasks = get_tasks(path);
+    let mut tasks = get_tasks(primary_path);
     let mut added_count = 0;
     let mut ignored_files = Vec::new();
 
@@ -156,7 +162,7 @@ pub fn scan_tasks(args: Vec<String>, path: &Path) {
         stdin().read_line(&mut input).expect("Error reading input.");
 
         if input.trim().eq_ignore_ascii_case("y") {
-            tasks.push(Task {
+            let new_task = Task {
                 text: item.text
                     + item
                         .line_number
@@ -166,7 +172,8 @@ pub fn scan_tasks(args: Vec<String>, path: &Path) {
                 completed: false,
                 tags: vec!["code-todo".to_string()],
                 files: vec![item.file_path],
-            });
+            };
+            tasks.push(new_task);
             added_count += 1;
         } else if input.trim().eq_ignore_ascii_case("i") {
             ignored_files.push(item.file_path);
@@ -174,25 +181,44 @@ pub fn scan_tasks(args: Vec<String>, path: &Path) {
     }
 
     if added_count > 0 {
-        save_tasks(tasks, path);
+        for target in targets {
+            if target.path == *primary_path {
+                save_tasks(tasks.clone(), &target.path);
+            } else {
+                let mut target_tasks = get_tasks(&target.path);
+                for t in tasks.iter().rev().take(added_count) {
+                    target_tasks.push(Task {
+                        text: t.text.clone(),
+                        completed: t.completed,
+                        tags: t.tags.clone(),
+                        files: t.files.clone(),
+                    });
+                }
+                save_tasks(target_tasks, &target.path);
+            }
+        }
         println!("\nSuccessfully imported {} new task(s)!", added_count);
     } else {
         println!("\nNo new tasks added.");
     }
 }
 
-pub fn import_tasks(args: Vec<String>, path: &Path) {
+pub fn import_tasks(args: Vec<String>, targets: &[TodoTarget]) {
+    if targets.is_empty() {
+        println!("No todo files found.");
+        return;
+    }
+
+    let primary_path = &targets[0].path;
     let mut found_todos = Vec::new();
 
     for path_str in &args[2..] {
-        // check if file exists, scan line-by-line for "- [*]", and read until end of line
         let p = Path::new(path_str);
         if !p.exists() {
             println!("Warning: Path '{}' does not exist. Skipping.", p.display());
             continue;
         }
 
-        // read file line-by-line
         let file = match fs::File::open(p) {
             Ok(f) => f,
             Err(e) => {
@@ -227,7 +253,7 @@ pub fn import_tasks(args: Vec<String>, path: &Path) {
             found_todos.push(ScannedTodo {
                 line_number: None,
                 text,
-                file_path: get_relative_to_todo(p, path),
+                file_path: get_relative_to_todo(p, primary_path),
                 complete,
             });
         }
@@ -238,7 +264,7 @@ pub fn import_tasks(args: Vec<String>, path: &Path) {
         return;
     }
 
-    let mut tasks = get_tasks(path);
+    let mut tasks = get_tasks(primary_path);
     let mut updated_count = 0;
 
     for item in found_todos {
@@ -284,7 +310,24 @@ pub fn import_tasks(args: Vec<String>, path: &Path) {
     }
 
     if updated_count > 0 {
-        save_tasks(tasks, path);
+        for target in targets {
+            if target.path == *primary_path {
+                save_tasks(tasks.clone(), &target.path);
+            } else {
+                let mut target_tasks = get_tasks(&target.path);
+                for t in &tasks {
+                    if !target_tasks.iter().any(|existing| existing.text == t.text) {
+                        target_tasks.push(Task {
+                            text: t.text.clone(),
+                            completed: t.completed,
+                            tags: t.tags.clone(),
+                            files: t.files.clone(),
+                        });
+                    }
+                }
+                save_tasks(target_tasks, &target.path);
+            }
+        }
         println!("\nSuccessfully imported {} task(s)!", updated_count);
     } else {
         println!("\nNo tasks imported.");

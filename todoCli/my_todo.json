@@ -43,7 +43,7 @@
   },
   {
     "text": "make sure when adding tags that it doesn't add duplicates",
-    "completed": false,
+    "completed": true,
     "tags": [
       "v0.9.0"
     ],
@@ -51,8 +51,19 @@
   },
   {
     "text": "allow selecting multiple todo files to edit at once, for example adding a task to personal AND repository, or listing tasks with a particular tag based on multiple --path arguments. first instinct is to implement a data structure that can hold multiple todo file paths and replace the todo file path variable everywhere with that and reimplement core functions with that structure. Edit: nvm, `new` would need to push to every path and attaching files would somehow need to get relative path for every todo list, maybe scrap this?",
-    "completed": false,
-    "tags": [],
+    "completed": true,
+    "tags": [
+      "v0.9.0"
+    ],
+    "files": []
+  },
+  {
+    "text": "fix error where piping overrides specific printing, for example 'todo l 6 | echo' printing the entire todo list when 'todo l 6' only prints task 6",
+    "completed": true,
+    "tags": [
+      "bug",
+      "v0.9.0"
+    ],
     "files": []
   }
 ]

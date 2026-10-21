@@ -1,6 +1,6 @@
 use crate::core::*;
 use std::io::{IsTerminal, stdout};
-use std::{cmp, path::Path};
+use std::cmp;
 
 fn is_piping() -> bool {
     !stdout().is_terminal()
@@ -14,12 +14,13 @@ pub struct DisplayConfig {
     show_tags: bool,
 }
 
+#[derive(Clone, Debug)]
 pub struct QueryConfig {
-    incomplete_only: bool,
-    complete_only: bool,
-    tags: Vec<String>,
-    not_tags: Vec<String>,
-    search_terms: Vec<String>,
+    pub incomplete_only: bool,
+    pub complete_only: bool,
+    pub tags: Vec<String>,
+    pub not_tags: Vec<String>,
+    pub search_terms: Vec<String>,
 }
 
 impl DisplayConfig {
@@ -56,39 +57,6 @@ impl QueryConfig {
             && self.not_tags.is_empty()
             && self.search_terms.is_empty()
     }
-}
-
-pub fn find_arg_and_remove(
-    args: &mut Vec<String>,
-    short_flag: &str,
-    long_flag: &str,
-) -> Option<usize> {
-    if let Some(pos) = args
-        .iter()
-        .position(|arg| arg == short_flag || arg == long_flag)
-    {
-        args.remove(pos);
-        return Some(pos);
-    }
-    None
-}
-
-pub fn extract_flag_values(
-    args: &mut Vec<String>,
-    short_flag: &str,
-    long_flag: &str,
-) -> Vec<String> {
-    let mut values = Vec::new();
-    while let Some(pos) = args
-        .iter()
-        .position(|arg| arg == short_flag || arg == long_flag)
-    {
-        args.remove(pos);
-        if pos < args.len() {
-            values.push(args.remove(pos));
-        }
-    }
-    values
 }
 
 pub fn config_display(args: &mut Vec<String>) -> DisplayConfig {
@@ -222,32 +190,26 @@ pub fn format_task(id: usize, task: &Task, conf: &DisplayConfig) -> String {
     output
 }
 
-pub fn list_task(mut args: Vec<String>, path: &Path) {
+pub fn list_task(mut args: Vec<String>, targets: &[TodoTarget]) {
+    if targets.is_empty() {
+        println!("No todo files found.");
+        return;
+    }
     args.remove(0); // remove command name
     args.remove(0); // remove subcommand name
     let display = config_display(&mut args);
     let query = config_query(&mut args);
-
-    if is_piping() || args.iter().any(|s| s == "--raw") {
-        for (original_index, task) in query_tasks(get_tasks(path), query, Vec::new()) {
-            println!("{}", format_task(original_index, &task, &display));
-        }
-        return;
-    }
+    let raw = find_arg_and_remove(&mut args, "-r", "--raw").is_some();
 
     let requested_page: usize = extract_flag_values(&mut args, "--page", "--page")
         .pop()
-        .map(|s| {
-            s.parse().unwrap_or_else(|_| {
-                println!("Failed to parse page argument.");
-                1
-            })
-        })
+        .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or(1_usize)
         .saturating_sub(1);
 
     let exceptions: Vec<usize> = args
         .iter()
+        .filter(|arg| !arg.starts_with('-'))
         .filter_map(|arg| match arg.parse::<usize>() {
             Ok(num) => Some(num),
             Err(e) => {
@@ -257,28 +219,75 @@ pub fn list_task(mut args: Vec<String>, path: &Path) {
         })
         .collect();
 
-    let visible_tasks = query_tasks(get_tasks(path), query, exceptions);
-    let len = visible_tasks.len();
-    if len < 1 {
-        println!("No tasks found.");
+    if targets.len() > 1 && !exceptions.is_empty() {
+        eprintln!(
+            "Error: Cannot use task indices across multiple todo files. Use a single file with --path or use --query instead."
+        );
         return;
     }
-    let pages = len.div_ceil(PAGE_LENGTH);
-    let page = cmp::min(requested_page, pages - 1);
-    let start: usize = page * PAGE_LENGTH;
-    let end = cmp::min(start + PAGE_LENGTH, len);
 
-    for (original_index, task) in &visible_tasks[start..end] {
-        println!("{}", format_task(*original_index, task, &display));
-    }
-    if pages <= 1 {
+    let piping = is_piping() || raw;
+
+    if targets.len() == 1 {
+        let path = &targets[0].path;
+        let visible_tasks = query_tasks(get_tasks(path), query, exceptions);
+        if piping {
+            for (original_index, task) in visible_tasks {
+                println!("{}", format_task(original_index, &task, &display));
+            }
+            return;
+        }
+
+        let len = visible_tasks.len();
+        if len < 1 {
+            println!("No tasks found.");
+            return;
+        }
+        let pages = len.div_ceil(PAGE_LENGTH);
+        let page = cmp::min(requested_page, pages - 1);
+        let start: usize = page * PAGE_LENGTH;
+        let end = cmp::min(start + PAGE_LENGTH, len);
+
+        for (original_index, task) in &visible_tasks[start..end] {
+            println!("{}", format_task(*original_index, task, &display));
+        }
+        if pages <= 1 {
+            return;
+        }
+        println!(
+            "\nPage {} of {}. Use '{} list --page {}' for more results.",
+            page + 1,
+            pages,
+            CMD_NAME,
+            page + 2
+        );
         return;
     }
-    println!(
-        "\nPage {} of {}. Use '{} list --page {}' for more results.",
-        page + 1,
-        pages,
-        CMD_NAME,
-        page + 2
-    );
+
+    // Multiple targets
+    let mut total_tasks = 0;
+    for target in targets {
+        let visible_tasks =
+            query_tasks(get_tasks(&target.path), query.clone(), exceptions.clone());
+        if visible_tasks.is_empty() {
+            continue;
+        }
+        total_tasks += visible_tasks.len();
+        if !piping {
+            println!(
+                "=== [{}] ({}) ===",
+                target.display_name,
+                target.path.display()
+            );
+        }
+        for (original_index, task) in visible_tasks {
+            println!("{}", format_task(original_index, &task, &display));
+        }
+        if !piping {
+            println!();
+        }
+    }
+    if total_tasks == 0 {
+        println!("No tasks found.");
+    }
 }

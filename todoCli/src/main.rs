@@ -6,7 +6,7 @@ use crate::actions::*;
 use crate::core::*;
 use crate::output::*;
 use crate::scanner::*;
-use std::{env, path::PathBuf};
+use std::env;
 
 fn match_shortcut(cmd: &str) -> &str {
     match cmd {
@@ -20,6 +20,7 @@ fn match_shortcut(cmd: &str) -> &str {
         "search" => "list",
         "c" => "complete",
         "u" => "undo",
+        "d" => "discover",
         "-v" => "--version",
         &_ => cmd,
     }
@@ -32,11 +33,12 @@ fn help_desc(cmd: &str) -> &str {
         "add" => "adds a tag to a task",
         "edit" => "edits a task's description",
         "attach" => "attaches files to a task",
-        "detach" => "detaches files to a task",
+        "detach" => "detaches files from a task",
         "remove" => "removes a tag from a task",
         "print" => "prints tasks",
         "list" => "lists tasks in pages",
         "search" => "searches tasks by tags",
+        "discover" => "recursively finds and prints out all todo lists",
         "scan" => "scans files and directories for TODO comments to convert",
         "import" => "scans specified files for github markdown check lists",
         "complete" => "completes tasks",
@@ -52,12 +54,13 @@ fn help_usage(cmd: &str) -> &str {
     match cmd {
         "init" => "[FLAGS]",
         "new" => "<DESCRIPTION...> [FLAGS]",
-        "add" => "<TASK_ID> <TAGS...>",
+        "add" => "<TASK_ID> <TAGS...> [FLAGS]",
         "edit" => "<TASK_ID> [FLAGS]",
-        "attach" => "<TASK_ID> <FILES...>",
-        "detach" => "<TASK_ID> <FILES...>",
-        "remove" => "<TASK_ID> <TAGS...>",
+        "attach" => "<TASK_ID> <FILES...> [FLAGS]",
+        "detach" => "<TASK_ID> <FILES...> [FLAGS]",
+        "remove" => "<TASK_ID> <TAGS...> [FLAGS]",
         "list" => "[TASK_IDs...] [FLAGS] [QUERY]",
+        "discover" => "[FLAGS]",
         "scan" => "[PATHS...]",
         "import" => "[PATHS...]",
         "complete" => "[TASK_IDs...] [QUERY]",
@@ -71,15 +74,35 @@ fn help_usage(cmd: &str) -> &str {
 
 fn help_flags(cmd: &str) -> Vec<(&str, &str)> {
     match cmd {
-        "list" => vec![
-            ("--page", "displays the given page of tasks"),
+        "new" => vec![
+            ("-v, --verbose", "outputs new task id"),
+            ("-t, --tag <TAG>", "takes in an argument for a tag to add"),
+            ("-a, --attach <FILE>", "attaches a file to the new task"),
+        ],
+        "add" | "attach" | "detach" => vec![
             (
-                "-s, --search",
+                "-v, --verbose",
+                "outputs numbers of operations completed successfully",
+            ),
+            ("-q, --query", "select tasks with a query"),
+        ],
+        "remove" => vec![("-q, --query", "select tasks with a query")],
+        "discover" => vec![(
+            "--depth <NUMBER>",
+            "max directory depth to search for todo lists",
+        )],
+        "list" => vec![
+            ("--page <NUMBER>", "displays the given page of tasks"),
+            (
+                "-s, --search <TERM>",
                 "filter tasks that contain the search term in their description (query)",
             ),
-            ("-t, --tag", "filter tasks that have the given tag (query)"),
             (
-                "--not",
+                "-t, --tag <TAG>",
+                "filter tasks that have the given tag (query)",
+            ),
+            (
+                "--not <TAG>",
                 "filter tasks that do not have the given tag (query)",
             ),
             (
@@ -96,6 +119,15 @@ fn help_flags(cmd: &str) -> Vec<(&str, &str)> {
             ("-n, --number", "display task numbers"),
             ("-T, --tags", "display task tags"),
             ("-f, --files", "display attached files"),
+            (
+                "-r, --raw",
+                "outputs raw formatted task lines without paging",
+            ),
+            ("-d, --discover", "recursively discover all todo lists"),
+            (
+                "--depth <NUMBER>",
+                "max directory depth to search for todo lists",
+            ),
         ],
         "edit" => vec![
             (
@@ -103,7 +135,7 @@ fn help_flags(cmd: &str) -> Vec<(&str, &str)> {
                 "retype description from blank input instead of editing existing description",
             ),
             (
-                "-o, --overwrite",
+                "-o, --overwrite <NEW_DESCRIPTION>",
                 "overwrite existing description with description from all non-flag command line arguments",
             ),
         ],
@@ -140,18 +172,23 @@ fn do_help(args: &[String]) {
         for (flag, flag_desc) in flags {
             println!("\t{:24} {}", flag, flag_desc);
         }
+        let personal_display = personal_path()
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|| "~\\my_todo.json".to_string());
         println!(
-            "\t{:24} manually select which todo list file to use\n\t{:24} uses the device user's personal todo list at {}\n",
-            "-p, --path",
+            "\t{:24} manually select which todo list file to use (can specify multiple)\n\t{:24} uses the device user's personal todo list at {}\n\t{:24} recursively discover all todo list files\n\t{:24} max directory depth when discovering todo lists\n",
+            "-p, --path <PATH>",
             "--personal",
-            "C:\\Users\\<username>" // TODO:
+            personal_display,
+            "-d, --discover",
+            "--depth <NUMBER>"
         );
     } else {
         // General top-level help
         println!("Usage: {} [COMMAND] [FLAGS]\n", CMD_NAME);
 
         println!(
-            "Commands:\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}",
+            "Commands:\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}\n\t{:24} {}",
             "init",
             help_desc("init"),
             "new, n",
@@ -168,6 +205,8 @@ fn do_help(args: &[String]) {
             help_desc("remove"),
             "list, l",
             help_desc("list"),
+            "discover, d",
+            help_desc("discover"),
             "scan",
             help_desc("scan"),
             "complete, c",
@@ -197,39 +236,47 @@ fn main() {
         return;
     }
 
-    let use_personal = find_arg_and_remove(&mut args, "--personal", "--personal");
-    let todo_path_input = value_flag(&args, "-p", "--path").map(|(s, pos)| (s.clone(), pos));
-    if let Some((_, pos)) = todo_path_input {
-        // remove flag and path from args list
-        if pos + 1 < args.len() {
-            args.remove(pos);
-        }
-        args.remove(pos);
-    }
-    let todo_path = if use_personal.is_some() {
-        personal_path().expect("Error getting personal path.")
-    } else if let Some((p, _)) = todo_path_input {
-        PathBuf::from(p.as_str())
-    } else {
-        find_file()
-    };
+    let has_discover_cmd = args.iter().any(|s| {
+        let sc = match_shortcut(s.as_str());
+        sc == "discover"
+    });
+    let targets = resolve_targets(&mut args, has_discover_cmd);
 
-    //figure out whether user wants to
-    match match_shortcut(args.get(1).expect("Error getting command arg.").as_str()) {
-        "init" => save_tasks(Vec::new(), &todo_path),
-        "new" => new_task(args, &todo_path),
-        "add" => add_tags(args, &todo_path),
-        "edit" => edit_task(args, &todo_path),
-        "attach" => attach_files(args, &todo_path),
-        "detach" => detach_files(args, &todo_path),
-        "remove" => remove_tags(args, &todo_path),
-        "list" => list_task(args, &todo_path),
-        "scan" => scan_tasks(args, &todo_path),
-        "import" => import_tasks(args, &todo_path),
-        "complete" => complete_task(args, &todo_path, true),
-        "undo" => complete_task(args, &todo_path, false),
-        "delete" => delete_task(args, &todo_path),
-        "clean" => clean_task(&todo_path),
+    if args.len() < 2 {
+        if has_discover_cmd {
+            discover_cmd(&targets);
+            return;
+        }
+        println!("Welcome to Max's custom todo cli!");
+        println!("Version - {}\n", env!("CARGO_PKG_VERSION"));
+        do_help(&args);
+        return;
+    }
+
+    let cmd = match_shortcut(args.get(1).expect("Error getting command arg.").as_str());
+
+    // figure out whether user wants to
+    match cmd {
+        "init" => {
+            for target in &targets {
+                save_tasks(Vec::new(), &target.path);
+                println!("Created empty todo list at {}.", target.path.display());
+            }
+        }
+        "discover" => discover_cmd(&targets),
+        "new" => new_task(args, &targets),
+        "add" => add_tags(args, &targets),
+        "edit" => edit_task(args, &targets),
+        "attach" => attach_files(args, &targets),
+        "detach" => detach_files(args, &targets),
+        "remove" => remove_tags(args, &targets),
+        "list" => list_task(args, &targets),
+        "scan" => scan_tasks(args, &targets),
+        "import" => import_tasks(args, &targets),
+        "complete" => complete_task(args, &targets, true),
+        "undo" => complete_task(args, &targets, false),
+        "delete" => delete_task(args, &targets),
+        "clean" => clean_task(&targets),
         "--version" => println!("Version - {}", env!("CARGO_PKG_VERSION")),
         &_ => do_help(&args),
     }
