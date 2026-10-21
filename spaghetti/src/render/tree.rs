@@ -1,4 +1,4 @@
-use super::columns::{format_with_commas, ColumnFormatter};
+use super::columns::{ColumnFormatter, format_with_commas};
 use crate::core::config::Config;
 use crate::core::types::FileNode;
 use crate::graph::{DependencyGraph, RootDetector};
@@ -90,7 +90,7 @@ fn insert_into_tree(tree: &mut BTreeMap<String, FsTreeNode>, rel_path: &Path, fi
             let entry = current
                 .entry(comp.clone())
                 .or_insert_with(|| FsTreeNode::Dir(BTreeMap::new()));
-            if let FsTreeNode::Dir(ref mut sub) = entry {
+            if let FsTreeNode::Dir(sub) = entry {
                 current = sub;
             } else {
                 break;
