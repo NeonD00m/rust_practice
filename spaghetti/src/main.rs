@@ -65,6 +65,11 @@ fn main() {
         return;
     }
 
+    if args[0] == "-v" || args[0] == "--version" {
+        println!("spaghetti {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
+
     let mut config = Config::default();
     let mut show_dep = false;
     let mut show_loc = false;

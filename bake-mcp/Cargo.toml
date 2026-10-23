@@ -4,3 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+rmcp = { version = "2.2.0", features = ["transport-io", "uuid"] }
+tokio = { version = "1.48.0", features = ["rt-multi-thread", "macros", "io-util", "sync", "process"] }
+schemars = "1.2.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+which = "7.0"
+dirs = "6.0"
+anyhow = "1.0"

@@ -1,6 +1,6 @@
 # rust_practice
 
-my goal is just to have fun coding rust without delegating to AI and create mini-side projects which might actually be useful!
+my goal is just to have fun coding rust and create mini-side projects which might actually be useful!
 *(emphasis on "might")*
 
 usually I focus on minimizing bloat and keeping it to the core necessary features, so file sizes are tiny and performance is never a problem

@@ -1,0 +1,149 @@
+[
+  {
+    "text": "configure bake-mcp dependencies in Cargo.toml (rmcp, tokio, schemars, tracing, which)",
+    "completed": true,
+    "tags": [
+      "v0.1.0",
+      "setup"
+    ],
+    "files": [
+      "Cargo.toml"
+    ]
+  },
+  {
+    "text": "port Quizzy stdio transport and server/discover probe interceptor to bake-mcp/src/transport.rs",
+    "completed": true,
+    "tags": [
+      "v0.1.0",
+      "transport"
+    ],
+    "files": []
+  },
+  {
+    "text": "setup stderr-only tracing subscriber in bake-mcp/src/main.rs to protect stdio JSON-RPC stream",
+    "completed": true,
+    "tags": [
+      "v0.1.0",
+      "transport"
+    ],
+    "files": [
+      "src\\main.rs"
+    ]
+  },
+  {
+    "text": "implement dynamic tool detector in bake-mcp/src/detector.rs to locate and probe installed suite binaries (todo, spaghetti, butternut, palmtree)",
+    "completed": true,
+    "tags": [
+      "v0.1.0",
+      "detector"
+    ],
+    "files": []
+  },
+  {
+    "text": "add --json machine output flag and stderr logging discipline to todoCli for list, new, complete, discover, and scan",
+    "completed": false,
+    "tags": [
+      "v0.1.0",
+      "cli-contracts"
+    ],
+    "files": [
+      "\\\\?\\C:\\Users\\neonf\\Documents\\Github\\rust_practice\\todoCli\\src\\main.rs"
+    ]
+  },
+  {
+    "text": "add --json output flag to butternut emitting ContributionGrid and StreakStats json",
+    "completed": false,
+    "tags": [
+      "v0.1.0",
+      "cli-contracts"
+    ],
+    "files": [
+      "\\\\?\\C:\\Users\\neonf\\Documents\\Github\\rust_practice\\butternut\\src\\main.rs"
+    ]
+  },
+  {
+    "text": "add --json output flag to palmtree for config and presets inspection",
+    "completed": false,
+    "tags": [
+      "v0.1.0",
+      "cli-contracts"
+    ],
+    "files": [
+      "\\\\?\\C:\\Users\\neonf\\Documents\\Github\\rust_practice\\palmtree\\src\\main.rs"
+    ]
+  },
+  {
+    "text": "implement async subprocess command runners in bake-mcp/src/adapters/ for each CLI tool with timeouts and error handling",
+    "completed": false,
+    "tags": [
+      "v0.1.0",
+      "adapters"
+    ],
+    "files": []
+  },
+  {
+    "text": "implement suite meta-tool (bake_suite_info) in bake-mcp/src/tools/suite_tools.rs",
+    "completed": true,
+    "tags": [
+      "v0.1.0",
+      "tools"
+    ],
+    "files": []
+  },
+  {
+    "text": "implement rmcp tools for todo (todo_list, todo_add, todo_complete, todo_undo, todo_delete, todo_discover, todo_scan, todo_import)",
+    "completed": false,
+    "tags": [
+      "v0.1.0",
+      "tools"
+    ],
+    "files": []
+  },
+  {
+    "text": "implement rmcp tools for spaghetti (spaghetti_tree, spaghetti_loc, spaghetti_diagnostics)",
+    "completed": false,
+    "tags": [
+      "v0.1.0",
+      "tools"
+    ],
+    "files": []
+  },
+  {
+    "text": "implement rmcp tools for butternut (butternut_repo_activity, butternut_github_activity, butternut_streak_status)",
+    "completed": false,
+    "tags": [
+      "v0.1.0",
+      "tools"
+    ],
+    "files": []
+  },
+  {
+    "text": "implement rmcp tools for palmtree (palm_get_config, palm_get_presets, palm_prepare_task)",
+    "completed": false,
+    "tags": [
+      "v0.1.0",
+      "tools"
+    ],
+    "files": []
+  },
+  {
+    "text": "wire rmcp ServerHandler and tool router in bake-mcp/src/server.rs",
+    "completed": true,
+    "tags": [
+      "v0.1.0",
+      "tools"
+    ],
+    "files": []
+  },
+  {
+    "text": "register bake-mcp in local agent mcp config and test end-to-end tool execution",
+    "completed": false,
+    "tags": [
+      "v0.1.0",
+      "verification"
+    ],
+    "files": [
+      "src\\main.rs"
+    ]
+  }
+]
